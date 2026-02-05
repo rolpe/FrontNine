@@ -1,0 +1,26 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+
+# CocoaPods
+Pods/
+
+# OS files
+.DS_Store
+*.swp
+*~
+
+# Xcode user-specific files
+*.xcuserstate
+*.xcbkptlist
+*.xcscheme
+
+# But keep shared scheme
+!*.xcscheme/xcschememanagement.plist
