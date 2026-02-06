@@ -115,17 +115,16 @@ struct AddCourseView: View {
                 VStack(spacing: 0) {
                     Divider().background(FNColors.tan.opacity(0.25))
                     Button(action: submitCourse) {
-                        Text("Add & Rank This Course")
+                        Text("Add Course")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(
                                 viewModel.isValid ? .white : FNColors.textLight
                             )
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(
-                                viewModel.isValid ? FNColors.sage : FNColors.tan
-                            )
+                            .background(buttonColor)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .animation(.easeInOut(duration: 0.2), value: viewModel.selectedRating)
                     }
                     .disabled(!viewModel.isValid)
                     .padding(.horizontal, 20)
@@ -144,17 +143,20 @@ struct AddCourseView: View {
         }
     }
 
+    private var buttonColor: Color {
+        guard viewModel.isValid, let rating = viewModel.selectedRating else {
+            return FNColors.tan
+        }
+        return rating.tierColor
+    }
+
     private func submitCourse() {
         guard let course = viewModel.buildCourse() else { return }
-
-        // Temporary rank assignment until comparison engine is wired (Chunk 8)
-        let descriptor = FetchDescriptor<Course>()
-        let count = (try? modelContext.fetchCount(descriptor)) ?? 0
-        course.rankPosition = count + 1
-
-        modelContext.insert(course)
-        onCourseAdded?(course)
-        dismiss()
+        if let onCourseAdded {
+            onCourseAdded(course)
+        } else {
+            dismiss()
+        }
     }
 }
 

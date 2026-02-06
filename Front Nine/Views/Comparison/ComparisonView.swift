@@ -6,127 +6,113 @@
 import SwiftUI
 
 struct ComparisonView: View {
-    let courseA: RankedCourse
-    let courseB: RankedCourse
-    let currentStep: Int
-    let totalSteps: Int
-    let onChoice: (ComparisonChoice) -> Void
+    let viewModel: ComparisonViewModel
+    let onComplete: () -> Void
 
     @State private var selected: ComparisonChoice?
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Progress dots
-            ProgressDotsView(currentStep: currentStep, totalSteps: totalSteps)
+        if let compareCourse = viewModel.comparisonCourse {
+            VStack(spacing: 0) {
+                // Progress dots
+                ProgressDotsView(
+                    currentStep: viewModel.currentStep,
+                    totalSteps: viewModel.totalSteps
+                )
                 .padding(.top, 20)
                 .padding(.bottom, 12)
 
-            // Question
-            VStack(spacing: 8) {
-                Text("Which would you\nrather play?")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(FNColors.text)
-                    .multilineTextAlignment(.center)
-                    .tracking(-0.3)
+                // Question
+                VStack(spacing: 8) {
+                    Text("Which would you\nrather play?")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(FNColors.text)
+                        .multilineTextAlignment(.center)
+                        .tracking(-0.3)
 
-                Text("Tap your choice")
-                    .font(.system(size: 15))
-                    .foregroundStyle(FNColors.textLight)
-            }
-            .padding(.bottom, 32)
-
-            // Cards + OR divider
-            VStack(spacing: 16) {
-                ComparisonCardView(
-                    courseName: courseA.name,
-                    courseLocation: "\(courseA.city), \(courseA.state)",
-                    isSelected: selected == .preferA,
-                    action: { choose(.preferA) }
-                )
-
-                // OR divider
-                HStack(spacing: 16) {
-                    Rectangle()
-                        .fill(FNColors.tan)
-                        .frame(height: 1)
-
-                    Text("OR")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(FNColors.tan)
-                        .kerning(1)
-
-                    Rectangle()
-                        .fill(FNColors.tan)
-                        .frame(height: 1)
+                    Text("Tap your choice")
+                        .font(.system(size: 15))
+                        .foregroundStyle(FNColors.textLight)
                 }
+                .padding(.bottom, 32)
 
-                ComparisonCardView(
-                    courseName: courseB.name,
-                    courseLocation: "\(courseB.city), \(courseB.state)",
-                    isSelected: selected == .preferB,
-                    action: { choose(.preferB) }
-                )
+                // Cards + OR divider
+                VStack(spacing: 16) {
+                    ComparisonCardView(
+                        courseName: viewModel.newCourse.name,
+                        courseLocation: "\(viewModel.newCourse.city), \(viewModel.newCourse.state)",
+                        isSelected: selected == .preferA,
+                        action: { choose(.preferA) }
+                    )
+
+                    // OR divider
+                    HStack(spacing: 16) {
+                        Rectangle()
+                            .fill(FNColors.tan)
+                            .frame(height: 1)
+
+                        Text("OR")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(FNColors.tan)
+                            .kerning(1)
+
+                        Rectangle()
+                            .fill(FNColors.tan)
+                            .frame(height: 1)
+                    }
+
+                    ComparisonCardView(
+                        courseName: compareCourse.name,
+                        courseLocation: "\(compareCourse.city), \(compareCourse.state)",
+                        isSelected: selected == .preferB,
+                        action: { choose(.preferB) }
+                    )
+                }
+                .padding(.horizontal, 16)
+
+                Spacer()
+
+                // Can't decide
+                Button {
+                    choose(.cantDecide)
+                } label: {
+                    Text("I can't decide")
+                        .font(.system(size: 15))
+                        .foregroundStyle(FNColors.textLight)
+                }
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 16)
-
-            Spacer()
-
-            // Can't decide
-            Button {
-                choose(.cantDecide)
-            } label: {
-                Text("I can't decide")
-                    .font(.system(size: 15))
-                    .foregroundStyle(FNColors.textLight)
-            }
-            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(FNColors.cream)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(FNColors.cream)
     }
 
     private func choose(_ choice: ComparisonChoice) {
         guard selected == nil else { return }
         selected = choice
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            onChoice(choice)
+            viewModel.choose(choice)
             selected = nil
+            if viewModel.isComplete {
+                onComplete()
+            }
         }
     }
 }
 
 #Preview {
-    ComparisonView(
-        courseA: RankedCourse(
-            id: UUID(), name: "Whistling Straits",
-            city: "Kohler", state: "WI",
-            rating: .liked, rankPosition: 0
-        ),
-        courseB: RankedCourse(
-            id: UUID(), name: "TPC Sawgrass",
-            city: "Ponte Vedra Beach", state: "FL",
-            rating: .liked, rankPosition: 4
-        ),
-        currentStep: 1,
-        totalSteps: 3,
-        onChoice: { _ in }
+    let course = Course(
+        name: "Whistling Straits", city: "Kohler", state: "WI",
+        courseType: .public, rating: .liked
     )
-}
-
-#Preview("Long names") {
-    ComparisonView(
-        courseA: RankedCourse(
-            id: UUID(), name: "Pebble Beach Golf Links",
-            city: "Pebble Beach", state: "CA",
-            rating: .loved, rankPosition: 0
-        ),
-        courseB: RankedCourse(
-            id: UUID(), name: "Pinehurst No. 2 Resort & Country Club",
-            city: "Pinehurst", state: "NC",
-            rating: .loved, rankPosition: 1
-        ),
-        currentStep: 0,
-        totalSteps: 2,
-        onChoice: { _ in }
-    )
+    let existing = [
+        Course(name: "TPC Sawgrass", city: "Ponte Vedra Beach", state: "FL",
+               courseType: .public, rating: .liked, rankPosition: 1),
+        Course(name: "Bethpage Black", city: "Farmingdale", state: "NY",
+               courseType: .public, rating: .liked, rankPosition: 2),
+        Course(name: "Torrey Pines South", city: "La Jolla", state: "CA",
+               courseType: .public, rating: .liked, rankPosition: 3),
+    ]
+    let vm = ComparisonViewModel(newCourse: course, existingCourses: existing)
+    ComparisonView(viewModel: vm, onComplete: {})
 }

@@ -118,4 +118,23 @@ struct RankingEngine {
         guard lowIndex <= highIndex else { return lowIndex }
         return Int.random(in: lowIndex...highIndex)
     }
+
+    /// Recomputes contiguous 1..N rank positions respecting tier order.
+    /// Call this as a safety net if gaps or duplicates are suspected.
+    static func normalizeRanks(_ courses: [RankedCourse]) -> [UUID: Int] {
+        let sorted = courses.sorted {
+            if $0.rating.tierOrder != $1.rating.tierOrder {
+                return $0.rating.tierOrder < $1.rating.tierOrder
+            }
+            return $0.rankPosition < $1.rankPosition
+        }
+        var updates: [UUID: Int] = [:]
+        for (index, course) in sorted.enumerated() {
+            let correctRank = index + 1
+            if course.rankPosition != correctRank {
+                updates[course.id] = correctRank
+            }
+        }
+        return updates
+    }
 }

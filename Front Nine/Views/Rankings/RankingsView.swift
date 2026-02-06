@@ -48,6 +48,12 @@ struct RankingsView: View {
             .navigationTitle("My Rankings")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !courses.isEmpty {
+                        EditButton()
+                            .foregroundStyle(FNColors.sage)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showingAddCourse = true }) {
                         Image(systemName: "plus")
@@ -55,8 +61,13 @@ struct RankingsView: View {
                     }
                 }
             }
+            .navigationDestination(for: UUID.self) { courseID in
+                if let course = courses.first(where: { $0.id == courseID }) {
+                    CourseDetailView(course: course)
+                }
+            }
             .sheet(isPresented: $showingAddCourse) {
-                AddCourseView()
+                AddCourseFlowView()
             }
         }
     }
@@ -64,13 +75,27 @@ struct RankingsView: View {
     private func tierSection(rating: Rating, courses: [Course]) -> some View {
         Section {
             ForEach(courses, id: \.id) { course in
-                CourseRowView(course: course, onDelete: deleteCourse)
-                    .listRowBackground(FNColors.cream)
-                    .listRowSeparatorTint(FNColors.tan.opacity(0.25))
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                NavigationLink(value: course.id) {
+                    CourseRowView(course: course, onDelete: deleteCourse)
+                }
+                .listRowBackground(FNColors.cream)
+                .listRowSeparatorTint(FNColors.tan.opacity(0.25))
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            }
+            .onMove { source, destination in
+                moveCourses(in: rating, from: source, to: destination)
             }
         } header: {
             TierHeaderView(rating: rating)
+        }
+    }
+
+    private func moveCourses(in rating: Rating, from source: IndexSet, to destination: Int) {
+        var tierCourses = courses.filter { $0.rating == rating }
+        let ranks = tierCourses.map { $0.rankPosition }
+        tierCourses.move(fromOffsets: source, toOffset: destination)
+        for (index, course) in tierCourses.enumerated() {
+            course.rankPosition = ranks[index]
         }
     }
 
