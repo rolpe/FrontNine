@@ -238,7 +238,7 @@ struct RankingEngineTests {
             makeCourse(name: "C", rating: .liked, rank: 5),
         ]
 
-        var low = 0
+        let low = 0
         var high = tier.count - 1
         var comparisons = 0
 
@@ -266,7 +266,7 @@ struct RankingEngineTests {
         ]
 
         var low = 0
-        var high = tier.count - 1
+        let high = tier.count - 1
         var comparisons = 0
 
         while low <= high {

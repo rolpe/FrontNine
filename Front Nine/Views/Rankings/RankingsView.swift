@@ -100,13 +100,7 @@ struct RankingsView: View {
     }
 
     private func deleteCourse(_ course: Course) {
-        let deletedRank = course.rankPosition
-        modelContext.delete(course)
-
-        // Close the gap: shift all courses ranked below this one up by 1
-        for c in courses where c.rankPosition > deletedRank {
-            c.rankPosition -= 1
-        }
+        CourseDeleter.deleteCourse(course, allCourses: courses, modelContext: modelContext)
     }
 }
 

@@ -18,7 +18,7 @@ struct CourseDetailView: View {
     @State private var editName = ""
     @State private var editCity = ""
     @State private var editState = ""
-    @State private var editCourseType: CourseType = .public
+    @State private var editCourseType: CourseType? = .public
     @State private var editHoleCount = 18
     @State private var editNotes = ""
     @State private var editRating: Rating? = .liked
@@ -34,7 +34,7 @@ struct CourseDetailView: View {
                 ComparisonView(viewModel: vm, onComplete: {
                     applyReranking(vm)
                 })
-                .navigationBarHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
             } else if isEditing {
                 editContent
             } else {
@@ -116,7 +116,7 @@ struct CourseDetailView: View {
                 .font(.system(size: 32, weight: .semibold))
                 .foregroundStyle(FNColors.text)
 
-            Text("of \(totalCourses) courses")
+            Text("of \(totalCourses) \(totalCourses == 1 ? "course" : "courses")")
                 .font(FNFonts.subtext())
                 .foregroundStyle(FNColors.textLight)
         }
@@ -247,91 +247,15 @@ struct CourseDetailView: View {
 
     private var editContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                FNTextField(
-                    label: "Course Name",
-                    placeholder: "Course name",
-                    text: $editName,
-                    characterLimit: 100
-                )
-
-                HStack(alignment: .top, spacing: 12) {
-                    FNTextField(
-                        label: "City",
-                        placeholder: "City",
-                        text: $editCity,
-                        characterLimit: 50
-                    )
-                    .frame(maxWidth: .infinity)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("STATE")
-                            .font(FNFonts.label())
-                            .foregroundStyle(FNColors.textLight)
-                            .kerning(0.3)
-
-                        Picker("State", selection: $editState) {
-                            Text("--").tag("")
-                            ForEach(USState.allCases) { state in
-                                Text(state.rawValue).tag(state.rawValue)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .padding(10)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(FNColors.tan, lineWidth: 1.5)
-                        )
-                    }
-                    .frame(width: 100)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("COURSE TYPE")
-                        .font(FNFonts.label())
-                        .foregroundStyle(FNColors.textLight)
-                        .kerning(0.3)
-                    HStack(spacing: 8) {
-                        ForEach(CourseType.allCases, id: \.self) { type in
-                            PillButtonView(
-                                title: type.rawValue,
-                                isSelected: editCourseType == type,
-                                action: { editCourseType = type }
-                            )
-                        }
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("HOLES")
-                        .font(FNFonts.label())
-                        .foregroundStyle(FNColors.textLight)
-                        .kerning(0.3)
-                    HStack(spacing: 8) {
-                        PillButtonView(
-                            title: "9",
-                            isSelected: editHoleCount == 9,
-                            action: { editHoleCount = 9 }
-                        )
-                        PillButtonView(
-                            title: "18",
-                            isSelected: editHoleCount == 18,
-                            action: { editHoleCount = 18 }
-                        )
-                    }
-                }
-
-                RatingPickerView(selectedRating: $editRating)
-
-                FNTextField(
-                    label: "Notes (optional)",
-                    placeholder: "Any thoughts about this course...",
-                    text: $editNotes,
-                    characterLimit: 280
-                )
-            }
+            CourseFormFields(
+                name: $editName,
+                city: $editCity,
+                state: $editState,
+                courseType: $editCourseType,
+                holeCount: $editHoleCount,
+                rating: $editRating,
+                notes: $editNotes
+            )
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 40)
@@ -370,7 +294,7 @@ struct CourseDetailView: View {
         let trimmedCity = editCity.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty, !trimmedCity.isEmpty, !editState.isEmpty else { return }
 
-        guard let editRating else { return }
+        guard let editRating, let editCourseType else { return }
         let ratingChanged = editRating != course.rating
 
         // Apply non-rating fields
@@ -393,10 +317,7 @@ struct CourseDetailView: View {
 
     private func handleRatingChange(to newRating: Rating) {
         // 1. Remove from current position and close the gap
-        let oldRank = course.rankPosition
-        for c in allCourses where c.rankPosition > oldRank && c.id != course.id {
-            c.rankPosition -= 1
-        }
+        CourseDeleter.closeRankGap(for: course, in: allCourses)
 
         // 2. Update rating
         course.rating = newRating
@@ -445,12 +366,7 @@ struct CourseDetailView: View {
     }
 
     private func deleteCourse() {
-        let deletedRank = course.rankPosition
-        // Close the gap
-        for c in allCourses where c.rankPosition > deletedRank && c.id != course.id {
-            c.rankPosition -= 1
-        }
-        modelContext.delete(course)
+        CourseDeleter.deleteCourse(course, allCourses: allCourses, modelContext: modelContext)
         dismiss()
     }
 }
