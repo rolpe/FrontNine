@@ -1,6 +1,6 @@
 # Front Nine
 
-A local-only iOS golf course ranking app. Users search for real golf courses via MapKit, rate them with 3-tier sentiment (Loved / Liked / Didn't Love), then rank them within tiers via head-to-head comparisons using binary search. Supports international courses.
+An iOS golf course ranking app. Users search for real golf courses via MapKit, rate them with 3-tier sentiment (Loved / Liked / Didn't Love), then rank them within tiers via head-to-head comparisons using binary search. Supports international courses. Evolving toward user accounts and social features (following, shared rankings, activity feeds).
 
 ## Working Style
 Be a thought partner, not just an executor. Before implementing changes, briefly propose alternatives that could improve the user experience or technical approach. Challenge my assumptions and suggest better paths when you see them. Only skip this step if I explicitly say "just do it" or make clear I want exact execution. Pause for manual testing between implementation chunks.
@@ -10,7 +10,8 @@ Be a thought partner, not just an executor. Before implementing changes, briefly
 - Swift Testing framework (`@Test`, `#expect`, `import Testing`)
 - Xcode 16+ with `PBXFileSystemSynchronizedRootGroup` — new files on disk are auto-detected, no pbxproj editing needed
 - Apple MapKit for course search (`MKLocalSearch` with golf POI filter)
-- No external dependencies
+- CoreLocation for nearby course discovery
+- Backend TBD (auth + data sync for upcoming social features)
 
 ## Architecture & Directory Structure
 ```
@@ -23,7 +24,8 @@ Front Nine/
     FNTheme.swift          — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
   Services/
     RankingEngine.swift    — Pure-logic binary search ranking (NO SwiftUI/SwiftData imports)
-    CourseSearchService.swift — Actor wrapping MKLocalSearch with golf POI filter
+    CourseSearchService.swift — Actor wrapping MKLocalSearch with golf POI filter + nearby search
+    LocationManager.swift  — @Observable CLLocationManager wrapper (one-shot location, permission handling)
     CourseDeleter.swift    — Static helpers for rank gap closure + deletion
   ViewModels/
     AddCourseViewModel.swift    — Manual add form state, validation, country auto-fill from locale
@@ -114,6 +116,8 @@ Front NineTests/
 - **Already-added detection**: Green checkmark badge on search results for courses already in rankings (indicator only, still tappable)
 - **Error state polish**: Coral-tinted card with "Try Again" button for real errors; MapKit "no results" handled as empty state (not error)
 - **Notes in quick rate**: Notes field available during both new add and re-rank flows
+- **Nearby courses**: LocationManager with one-shot location, auto-load when authorized, permission prompt/denied/settings UI, max 5 results in search empty state
+- **Keyboard dismissal**: `.scrollDismissesKeyboard(.immediately)` + `.onTapGesture` on search ScrollView
 - **Debug tools** (`#if DEBUG`): Ladybug toolbar button → seed 8 sample courses / delete all courses
 - **81 unit tests passing** across 6 test files
 
@@ -121,16 +125,13 @@ Front NineTests/
 - `par: Int?`, `courseRating: Double?`, `slope: Int?` on Course — all nil, awaiting golf-specific API
 
 ### Not Yet Implemented
-- **Nearby courses** (Chunk 5): CLLocationManager, location permissions, nearby search
+- **User registration & auth**: Sign in with Apple (+ potentially email/password), backend TBD
+- **Data sync**: Local SwiftData ↔ remote store sync
+- **Social features**: User profiles, following, shared rankings, activity feeds
 
 ## Next Steps
 
-Chunk 5 (Nearby Courses):
-1. LocationManager (@Observable wrapping CLLocationManager)
-2. searchNearby(coordinate:) on CourseSearchService
-3. "Nearby Courses" card in search empty state
-4. Permission handling (denied → Settings message)
-5. Info.plist location usage description
+User registration and authentication — deciding on backend (CloudKit vs Firebase vs Supabase), auth providers (Sign in with Apple, email/password, Google), and whether auth is required or progressive (optional until social features needed).
 
 ## Gotchas & Context a New Session Would Miss
 

@@ -4,6 +4,7 @@
 
 import SwiftUI
 import SwiftData
+import MapKit
 
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -49,6 +50,18 @@ struct CourseDetailView: View {
 
     private var detailContent: some View {
         ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Map peek (only for courses with coordinates)
+                if course.hasCoordinates,
+                   let lat = course.latitude,
+                   let lon = course.longitude {
+                    MapPeekView(
+                        coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                        courseName: course.name,
+                        height: 160
+                    )
+                }
+
             VStack(alignment: .leading, spacing: 20) {
                 // Course name and location
                 VStack(alignment: .leading, spacing: 6) {
@@ -72,6 +85,17 @@ struct CourseDetailView: View {
                     ratingCard
                 }
 
+                // Course stats (enriched from API)
+                if course.hasEnrichedData {
+                    CourseStatsCard(
+                        par: course.par,
+                        courseRating: course.courseRating,
+                        slope: course.slope,
+                        totalYards: course.totalYards,
+                        teeName: course.teeName
+                    )
+                }
+
                 // Course details grouped card
                 detailsCard
 
@@ -86,6 +110,7 @@ struct CourseDetailView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 40)
+            }
         }
         .background(FNColors.cream)
         .navigationTitle(course.name)

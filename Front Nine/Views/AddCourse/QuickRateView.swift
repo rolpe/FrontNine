@@ -4,10 +4,12 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct QuickRateView: View {
     let searchResult: CourseSearchResult
     var existingCourse: Course?
+    var enrichmentData: CourseEnrichmentData?
     var onCourseReady: (Course) -> Void
     var onBack: () -> Void
 
@@ -24,7 +26,7 @@ struct QuickRateView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Back button
+            // Back button (fixed above scroll)
             Button(action: onBack) {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
@@ -39,6 +41,14 @@ struct QuickRateView: View {
             .padding(.top, 12)
 
             ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Map peek (scrolls with content)
+                    MapPeekView(
+                        coordinate: searchResult.coordinate,
+                        courseName: searchResult.name,
+                        height: 120
+                    )
+
                 VStack(alignment: .leading, spacing: 24) {
                     // Course info header
                     VStack(alignment: .leading, spacing: 4) {
@@ -50,6 +60,16 @@ struct QuickRateView: View {
                         Text(locationText)
                             .font(FNFonts.subtext())
                             .foregroundStyle(FNColors.textLight)
+                    }
+
+                    if let data = enrichmentData {
+                        CourseStatsCard(
+                            par: data.par,
+                            courseRating: data.courseRating,
+                            slope: data.slope,
+                            totalYards: data.totalYards,
+                            teeName: data.teeName
+                        )
                     }
 
                     Divider()
@@ -120,6 +140,7 @@ struct QuickRateView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
                 .padding(.bottom, 100)
+                }
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 0) {
@@ -164,6 +185,16 @@ struct QuickRateView: View {
         return rating.tierColor
     }
 
+    private func applyEnrichment(to course: Course) {
+        guard let data = enrichmentData else { return }
+        course.par = data.par
+        course.courseRating = data.courseRating
+        course.slope = data.slope
+        course.totalYards = data.totalYards
+        course.golfCourseApiId = data.golfCourseApiId
+        course.teeName = data.teeName
+    }
+
     private func submitCourse() {
         guard let courseType, let selectedRating else { return }
         let trimmedNotes = notes.trimmingCharacters(in: .whitespaces)
@@ -175,6 +206,9 @@ struct QuickRateView: View {
             course.rating = selectedRating
             course.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
             course.updatedAt = Date()
+            course.latitude = searchResult.coordinate.latitude
+            course.longitude = searchResult.coordinate.longitude
+            applyEnrichment(to: course)
             onCourseReady(course)
         } else {
             // New course
@@ -186,9 +220,12 @@ struct QuickRateView: View {
                 holeCount: holeCount,
                 rating: selectedRating,
                 rankPosition: 0,
-                country: searchResult.country.isEmpty ? nil : searchResult.country
+                country: searchResult.country.isEmpty ? nil : searchResult.country,
+                latitude: searchResult.coordinate.latitude,
+                longitude: searchResult.coordinate.longitude
             )
             course.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
+            applyEnrichment(to: course)
             onCourseReady(course)
         }
     }

@@ -12,6 +12,9 @@ Packages/
 # CocoaPods
 Pods/
 
+# Secrets (API keys — never commit)
+Secrets.swift
+
 # OS files
 .DS_Store
 *.swp

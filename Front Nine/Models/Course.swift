@@ -52,6 +52,19 @@ final class Course {
     var par: Int?
     var courseRating: Double?
     var slope: Int?
+    var totalYards: Int?
+    var golfCourseApiId: Int?
+    var teeName: String?
+    var latitude: Double?
+    var longitude: Double?
+
+    var hasEnrichedData: Bool {
+        par != nil || courseRating != nil || slope != nil || totalYards != nil
+    }
+
+    var hasCoordinates: Bool {
+        latitude != nil && longitude != nil
+    }
 
     init(
         id: UUID = UUID(),
@@ -68,7 +81,12 @@ final class Course {
         country: String? = nil,
         par: Int? = nil,
         courseRating: Double? = nil,
-        slope: Int? = nil
+        slope: Int? = nil,
+        totalYards: Int? = nil,
+        golfCourseApiId: Int? = nil,
+        teeName: String? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil
     ) {
         self.id = id
         self.name = name
@@ -85,6 +103,11 @@ final class Course {
         self.par = par
         self.courseRating = courseRating
         self.slope = slope
+        self.totalYards = totalYards
+        self.golfCourseApiId = golfCourseApiId
+        self.teeName = teeName
+        self.latitude = latitude
+        self.longitude = longitude
     }
 
     /// Formatted location string, showing country only when it differs from the user's locale.

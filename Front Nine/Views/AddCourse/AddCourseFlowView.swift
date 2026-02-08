@@ -20,7 +20,7 @@ struct AddCourseFlowView: View {
     private enum FlowStep {
         case search
         case detail(CourseSearchResult)
-        case quickRate(CourseSearchResult)
+        case quickRate(CourseSearchResult, CourseEnrichmentData?)
         case manualAdd
         case comparison(ComparisonViewModel)
     }
@@ -63,17 +63,18 @@ struct AddCourseFlowView: View {
                             flowStep = .search
                         }
                     },
-                    onAddAndRate: {
+                    onAddAndRate: { enrichmentData in
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            flowStep = .quickRate(result)
+                            flowStep = .quickRate(result, enrichmentData)
                         }
                     }
                 )
 
-            case .quickRate(let result):
+            case .quickRate(let result, let enrichmentData):
                 QuickRateView(
                     searchResult: result,
                     existingCourse: rerankingCourse,
+                    enrichmentData: enrichmentData,
                     onCourseReady: { course in
                         if rerankingCourse != nil {
                             handleCourseReranked(course)

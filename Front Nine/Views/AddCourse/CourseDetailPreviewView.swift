@@ -4,29 +4,44 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct CourseDetailPreviewView: View {
     let result: CourseSearchResult
     var existingCourse: Course?
     var onBack: () -> Void
-    var onAddAndRate: () -> Void
+    var onAddAndRate: (CourseEnrichmentData?) -> Void
+
+    @State private var enrichment = CourseEnrichmentService()
 
     private var isRerank: Bool { existingCourse != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Back button
-            Button(action: onBack) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("Search")
-                        .font(.system(size: 16, weight: .medium))
+            // Map peek at top with back button overlay
+            ZStack(alignment: .topLeading) {
+                MapPeekView(
+                    coordinate: result.coordinate,
+                    courseName: result.name
+                )
+
+                // Back button overlaid on map
+                Button(action: onBack) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Search")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(FNColors.sage)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.thinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .foregroundStyle(FNColors.sage)
+                .padding(.leading, 12)
+                .padding(.top, 12)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
 
             // Course name
             Text(result.name)
@@ -35,7 +50,6 @@ struct CourseDetailPreviewView: View {
                 .tracking(-0.5)
                 .lineSpacing(2)
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
 
             // Location
             HStack(spacing: 5) {
@@ -64,6 +78,35 @@ struct CourseDetailPreviewView: View {
                 .padding(.top, 10)
             }
 
+            // Enrichment section
+            VStack(alignment: .leading, spacing: 16) {
+                if enrichment.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .tint(FNColors.warmGray)
+                        Text("Looking up course details...")
+                            .font(FNFonts.subtext())
+                            .foregroundStyle(FNColors.textLight)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                } else if let candidates = enrichment.matchCandidates {
+                    CourseDisambiguationView(candidates: candidates) { course in
+                        enrichment.selectCourse(course)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .transition(.opacity)
+                } else if enrichment.matchedCourse != nil {
+                    enrichedDataSection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: enrichment.isLoading)
+            .animation(.easeInOut(duration: 0.3), value: enrichment.matchedCourse?.id)
+
             // Divider
             Rectangle()
                 .fill(FNColors.tan.opacity(0.3))
@@ -72,7 +115,7 @@ struct CourseDetailPreviewView: View {
                 .padding(.vertical, 24)
 
             // Action button
-            Button(action: onAddAndRate) {
+            Button(action: { onAddAndRate(enrichment.enrichmentData) }) {
                 Text(isRerank ? "Re-rank This Course" : "Add & Rate This Course")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
@@ -87,6 +130,32 @@ struct CourseDetailPreviewView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(FNColors.cream)
+        .task {
+            await enrichment.enrich(searchResult: result)
+        }
+    }
+
+    @ViewBuilder
+    private var enrichedDataSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if enrichment.availableTeeBoxes.count > 1 {
+                TeePickerView(
+                    teeBoxes: enrichment.availableTeeBoxes,
+                    selectedTee: enrichment.selectedTeeBox,
+                    onSelect: { enrichment.selectTeeBox($0) }
+                )
+            }
+
+            if let data = enrichment.enrichmentData {
+                CourseStatsCard(
+                    par: data.par,
+                    courseRating: data.courseRating,
+                    slope: data.slope,
+                    totalYards: data.totalYards,
+                    teeName: enrichment.availableTeeBoxes.count <= 1 ? data.teeName : nil
+                )
+            }
+        }
     }
 
     private var locationText: String {
