@@ -28,9 +28,13 @@ struct CourseRowView: View {
                     .font(FNFonts.bodyMedium())
                     .foregroundStyle(FNColors.text)
 
-                Text("\(course.city), \(course.state)")
-                    .font(FNFonts.subtext())
-                    .foregroundStyle(FNColors.textLight)
+                HStack(spacing: 6) {
+                    Text(course.locationText)
+                        .font(FNFonts.subtext())
+                        .foregroundStyle(FNColors.textLight)
+
+                    TypePill(courseType: course.courseType)
+                }
             }
 
             Spacer()

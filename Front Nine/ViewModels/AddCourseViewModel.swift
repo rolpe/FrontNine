@@ -5,11 +5,17 @@
 
 import SwiftUI
 
+private let defaultCountry: String = {
+    guard let regionCode = Locale.current.region?.identifier else { return "" }
+    return Locale.current.localizedString(forRegionCode: regionCode) ?? ""
+}()
+
 @Observable
 final class AddCourseViewModel {
     var courseName: String = ""
     var city: String = ""
     var state: String = ""
+    var country: String = defaultCountry
     var courseType: CourseType? = nil
     var holeCount: Int = 18
     var notes: String = ""
@@ -18,7 +24,6 @@ final class AddCourseViewModel {
     var isValid: Bool {
         !courseName.trimmingCharacters(in: .whitespaces).isEmpty &&
         !city.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !state.isEmpty &&
         courseType != nil &&
         selectedRating != nil
     }
@@ -32,6 +37,7 @@ final class AddCourseViewModel {
 
     func buildCourse() -> Course? {
         guard isValid, let courseType, let selectedRating else { return nil }
+        let trimmedCountry = country.trimmingCharacters(in: .whitespaces)
         return Course(
             name: trimmedName,
             city: trimmedCity,
@@ -40,7 +46,8 @@ final class AddCourseViewModel {
             holeCount: holeCount,
             notes: trimmedNotes,
             rating: selectedRating,
-            rankPosition: 0
+            rankPosition: 0,
+            country: trimmedCountry.isEmpty ? nil : trimmedCountry
         )
     }
 
@@ -48,6 +55,7 @@ final class AddCourseViewModel {
         courseName = ""
         city = ""
         state = ""
+        country = defaultCountry
         courseType = nil
         holeCount = 18
         notes = ""

@@ -21,6 +21,7 @@ struct AddCourseView: View {
                     name: $viewModel.courseName,
                     city: $viewModel.city,
                     state: $viewModel.state,
+                    country: $viewModel.country,
                     courseType: $viewModel.courseType,
                     holeCount: $viewModel.holeCount,
                     rating: $viewModel.selectedRating,

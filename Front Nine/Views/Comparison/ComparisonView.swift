@@ -14,12 +14,13 @@ struct ComparisonView: View {
     var body: some View {
         if let compareCourse = viewModel.comparisonCourse {
             VStack(spacing: 0) {
+                Spacer()
+
                 // Progress dots
                 ProgressDotsView(
                     currentStep: viewModel.currentStep,
                     totalSteps: viewModel.totalSteps
                 )
-                .padding(.top, 20)
                 .padding(.bottom, 12)
 
                 // Question
@@ -40,7 +41,7 @@ struct ComparisonView: View {
                 VStack(spacing: 16) {
                     ComparisonCardView(
                         courseName: viewModel.newCourse.name,
-                        courseLocation: "\(viewModel.newCourse.city), \(viewModel.newCourse.state)",
+                        courseLocation: viewModel.newCourse.locationText,
                         isSelected: selected == .preferA,
                         action: { choose(.preferA) }
                     )
@@ -63,14 +64,12 @@ struct ComparisonView: View {
 
                     ComparisonCardView(
                         courseName: compareCourse.name,
-                        courseLocation: "\(compareCourse.city), \(compareCourse.state)",
+                        courseLocation: Course.formatLocation(city: compareCourse.city, state: compareCourse.state, country: compareCourse.country),
                         isSelected: selected == .preferB,
                         action: { choose(.preferB) }
                     )
                 }
                 .padding(.horizontal, 16)
-
-                Spacer()
 
                 // Can't decide
                 Button {
@@ -80,7 +79,9 @@ struct ComparisonView: View {
                         .font(.system(size: 15))
                         .foregroundStyle(FNColors.textLight)
                 }
-                .padding(.bottom, 24)
+                .padding(.top, 32)
+
+                Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(FNColors.cream)

@@ -32,13 +32,13 @@ struct AddCourseViewModelTests {
         #expect(!vm.isValid)
     }
 
-    @Test func invalidWhenStateEmpty() {
+    @Test func validWhenStateEmpty() {
         let vm = AddCourseViewModel()
         vm.courseName = "Test Course"
         vm.city = "Austin"
         vm.courseType = .public
         vm.selectedRating = .liked
-        #expect(!vm.isValid)
+        #expect(vm.isValid) // State is optional for international courses
     }
 
     @Test func invalidWhenCourseTypeNil() {

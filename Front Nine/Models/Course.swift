@@ -48,6 +48,10 @@ final class Course {
     var rankPosition: Int
     var createdAt: Date
     var updatedAt: Date
+    var country: String?
+    var par: Int?
+    var courseRating: Double?
+    var slope: Int?
 
     init(
         id: UUID = UUID(),
@@ -60,7 +64,11 @@ final class Course {
         rating: Rating,
         rankPosition: Int = 0,
         createdAt: Date = Date(),
-        updatedAt: Date = Date()
+        updatedAt: Date = Date(),
+        country: String? = nil,
+        par: Int? = nil,
+        courseRating: Double? = nil,
+        slope: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -73,5 +81,31 @@ final class Course {
         self.rankPosition = rankPosition
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.country = country
+        self.par = par
+        self.courseRating = courseRating
+        self.slope = slope
+    }
+
+    /// Formatted location string, showing country only when it differs from the user's locale.
+    var locationText: String {
+        Self.formatLocation(city: city, state: state, country: country)
+    }
+
+    static func formatLocation(city: String, state: String, country: String?) -> String {
+        var parts = [city]
+        if !state.isEmpty { parts.append(state) }
+        if let country, !country.isEmpty, !isHomeCountry(country) {
+            parts.append(country)
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    private static func isHomeCountry(_ country: String) -> Bool {
+        guard let regionCode = Locale.current.region?.identifier,
+              let localeName = Locale.current.localizedString(forRegionCode: regionCode) else {
+            return false
+        }
+        return country.lowercased() == localeName.lowercased()
     }
 }

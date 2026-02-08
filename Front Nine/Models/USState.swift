@@ -15,6 +15,10 @@ enum USState: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    static func abbreviation(for fullName: String) -> String? {
+        allCases.first { $0.fullName.lowercased() == fullName.lowercased() }?.rawValue
+    }
+
     var fullName: String {
         switch self {
         case .AL: return "Alabama"

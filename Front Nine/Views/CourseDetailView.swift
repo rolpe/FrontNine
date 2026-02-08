@@ -18,6 +18,7 @@ struct CourseDetailView: View {
     @State private var editName = ""
     @State private var editCity = ""
     @State private var editState = ""
+    @State private var editCountry = ""
     @State private var editCourseType: CourseType? = .public
     @State private var editHoleCount = 18
     @State private var editNotes = ""
@@ -51,12 +52,16 @@ struct CourseDetailView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Course name and location
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(course.name)
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(FNColors.text)
-                        .lineSpacing(2)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(course.name)
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(FNColors.text)
+                            .lineSpacing(2)
 
-                    Text("\(course.city), \(course.state)")
+                        TypePill(courseType: course.courseType)
+                    }
+
+                    Text(course.locationText)
                         .font(.system(size: 17))
                         .foregroundStyle(FNColors.textLight)
                 }
@@ -251,6 +256,7 @@ struct CourseDetailView: View {
                 name: $editName,
                 city: $editCity,
                 state: $editState,
+                country: $editCountry,
                 courseType: $editCourseType,
                 holeCount: $editHoleCount,
                 rating: $editRating,
@@ -282,6 +288,7 @@ struct CourseDetailView: View {
         editName = course.name
         editCity = course.city
         editState = course.state
+        editCountry = course.country ?? ""
         editCourseType = course.courseType
         editHoleCount = course.holeCount
         editNotes = course.notes ?? ""
@@ -292,7 +299,7 @@ struct CourseDetailView: View {
     private func saveEdits() {
         let trimmedName = editName.trimmingCharacters(in: .whitespaces)
         let trimmedCity = editCity.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty, !trimmedCity.isEmpty, !editState.isEmpty else { return }
+        guard !trimmedName.isEmpty, !trimmedCity.isEmpty else { return }
 
         guard let editRating, let editCourseType else { return }
         let ratingChanged = editRating != course.rating
@@ -301,6 +308,8 @@ struct CourseDetailView: View {
         course.name = trimmedName
         course.city = trimmedCity
         course.state = editState
+        let trimmedCountry = editCountry.trimmingCharacters(in: .whitespaces)
+        course.country = trimmedCountry.isEmpty ? nil : trimmedCountry
         course.courseType = editCourseType
         course.holeCount = editHoleCount
         course.notes = editNotes.trimmingCharacters(in: .whitespaces).isEmpty
@@ -349,7 +358,8 @@ struct CourseDetailView: View {
         let allRanked = otherCourses.map {
             RankedCourse(
                 id: $0.id, name: $0.name, city: $0.city,
-                state: $0.state, rating: $0.rating, rankPosition: $0.rankPosition
+                state: $0.state, country: $0.country,
+                rating: $0.rating, rankPosition: $0.rankPosition
             )
         }
         let shifts = RankingEngine.shiftRanksForInsertion(

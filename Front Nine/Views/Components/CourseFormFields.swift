@@ -10,6 +10,7 @@ struct CourseFormFields: View {
     @Binding var name: String
     @Binding var city: String
     @Binding var state: String
+    @Binding var country: String
     @Binding var courseType: CourseType?
     @Binding var holeCount: Int
     @Binding var rating: Rating?
@@ -36,29 +37,21 @@ struct CourseFormFields: View {
                 )
                 .frame(maxWidth: .infinity)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("STATE")
-                        .font(FNFonts.label())
-                        .foregroundStyle(FNColors.textLight)
-                        .kerning(0.3)
-
-                    Picker("State", selection: $state) {
-                        Text("--").tag("")
-                        ForEach(USState.allCases) { st in
-                            Text(st.rawValue).tag(st.rawValue)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .padding(10)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(FNColors.tan, lineWidth: 1.5)
-                    )
-                }
-                .frame(width: 100)
+                FNTextField(
+                    label: "State / Region",
+                    placeholder: "e.g. CA",
+                    text: $state,
+                    characterLimit: 50
+                )
+                .frame(width: 120)
             }
+
+            FNTextField(
+                label: "Country",
+                placeholder: "e.g. United States",
+                text: $country,
+                characterLimit: 50
+            )
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("COURSE TYPE")

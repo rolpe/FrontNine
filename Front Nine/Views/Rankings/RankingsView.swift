@@ -10,6 +10,9 @@ struct RankingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Course.rankPosition) private var courses: [Course]
     @State private var showingAddCourse = false
+    #if DEBUG
+    @State private var showingDebugMenu = false
+    #endif
 
     private var lovedCourses: [Course] {
         courses.filter { $0.rating == .loved }
@@ -60,7 +63,22 @@ struct RankingsView: View {
                             .foregroundStyle(FNColors.sage)
                     }
                 }
+                #if DEBUG
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showingDebugMenu = true }) {
+                        Image(systemName: "ladybug")
+                            .foregroundStyle(FNColors.warmGray)
+                    }
+                }
+                #endif
             }
+            #if DEBUG
+            .confirmationDialog("Debug Tools", isPresented: $showingDebugMenu, titleVisibility: .visible) {
+                Button("Seed 8 Sample Courses") { seedSampleCourses() }
+                Button("Delete All Courses", role: .destructive) { deleteAllCourses() }
+                Button("Cancel", role: .cancel) { }
+            }
+            #endif
             .navigationDestination(for: UUID.self) { courseID in
                 if let course = courses.first(where: { $0.id == courseID }) {
                     CourseDetailView(course: course)
@@ -74,6 +92,11 @@ struct RankingsView: View {
 
     private func tierSection(rating: Rating, courses: [Course]) -> some View {
         Section {
+            TierHeaderView(rating: rating)
+                .listRowBackground(FNColors.cream)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+
             ForEach(courses, id: \.id) { course in
                 NavigationLink(value: course.id) {
                     CourseRowView(course: course, onDelete: deleteCourse)
@@ -85,8 +108,6 @@ struct RankingsView: View {
             .onMove { source, destination in
                 moveCourses(in: rating, from: source, to: destination)
             }
-        } header: {
-            TierHeaderView(rating: rating)
         }
     }
 
@@ -102,6 +123,42 @@ struct RankingsView: View {
     private func deleteCourse(_ course: Course) {
         CourseDeleter.deleteCourse(course, allCourses: courses, modelContext: modelContext)
     }
+
+    // MARK: - Debug Helpers
+
+    #if DEBUG
+    private func deleteAllCourses() {
+        for course in courses {
+            modelContext.delete(course)
+        }
+    }
+
+    private func seedSampleCourses() {
+        // Clear existing first
+        deleteAllCourses()
+
+        let samples: [(String, String, String, String?, CourseType, Int, Rating)] = [
+            ("Pebble Beach Golf Links", "Pebble Beach", "CA", "United States", .public, 18, .loved),
+            ("Augusta National Golf Club", "Augusta", "GA", "United States", .private, 18, .loved),
+            ("St Andrews Old Course", "St Andrews", "", "Scotland", .public, 18, .loved),
+            ("Torrey Pines South", "La Jolla", "CA", "United States", .public, 18, .liked),
+            ("Bethpage Black", "Farmingdale", "NY", "United States", .public, 18, .liked),
+            ("Bandon Dunes", "Bandon", "OR", "United States", .public, 18, .liked),
+            ("Muni Executive 9", "Springfield", "IL", "United States", .public, 9, .disliked),
+            ("Desert Winds Golf", "Tucson", "AZ", "United States", .public, 18, .disliked),
+        ]
+
+        for (index, sample) in samples.enumerated() {
+            let course = Course(
+                name: sample.0, city: sample.1, state: sample.2,
+                courseType: sample.4, holeCount: sample.5,
+                rating: sample.6, rankPosition: index + 1
+            )
+            course.country = sample.3
+            modelContext.insert(course)
+        }
+    }
+    #endif
 }
 
 #Preview("Empty State") {

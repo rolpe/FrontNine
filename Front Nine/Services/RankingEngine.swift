@@ -11,6 +11,7 @@ struct RankedCourse: Identifiable {
     let name: String
     let city: String
     let state: String
+    let country: String?
     let rating: Rating
     let rankPosition: Int
 }
