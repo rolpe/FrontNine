@@ -8,7 +8,9 @@ struct TypePill: View {
     let courseType: CourseType
 
     var body: some View {
-        InfoPill(courseType.rawValue.uppercased())
+        if courseType == .private {
+            InfoPill(courseType.rawValue.uppercased())
+        }
     }
 }
 

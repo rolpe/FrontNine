@@ -14,6 +14,8 @@ struct RankedCourse: Identifiable {
     let country: String?
     let rating: Rating
     let rankPosition: Int
+    let latitude: Double?
+    let longitude: Double?
 }
 
 /// Outcome of a single head-to-head comparison.

@@ -18,7 +18,8 @@ struct RankingEngineTests {
     ) -> RankedCourse {
         RankedCourse(
             id: UUID(), name: name, city: "City", state: "CA",
-            country: nil, rating: rating, rankPosition: rank
+            country: nil, rating: rating, rankPosition: rank,
+            latitude: nil, longitude: nil
         )
     }
 

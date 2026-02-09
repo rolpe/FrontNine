@@ -41,7 +41,8 @@ final class ComparisonViewModel: Identifiable {
             id: newCourse.id, name: newCourse.name,
             city: newCourse.city, state: newCourse.state,
             country: newCourse.country,
-            rating: newCourse.rating, rankPosition: 0
+            rating: newCourse.rating, rankPosition: 0,
+            latitude: newCourse.latitude, longitude: newCourse.longitude
         )
     }
 
@@ -52,7 +53,8 @@ final class ComparisonViewModel: Identifiable {
                 id: $0.id, name: $0.name,
                 city: $0.city, state: $0.state,
                 country: $0.country,
-                rating: $0.rating, rankPosition: $0.rankPosition
+                rating: $0.rating, rankPosition: $0.rankPosition,
+                latitude: $0.latitude, longitude: $0.longitude
             )
         }
         self.tierCourses = RankingEngine.coursesInTier(

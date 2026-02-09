@@ -8,12 +8,13 @@ import SwiftUI
 struct ProgressDotsView: View {
     let currentStep: Int
     let totalSteps: Int
+    var activeColor: Color = FNColors.sage
 
     var body: some View {
         HStack(spacing: 8) {
             ForEach(0..<totalSteps, id: \.self) { step in
                 Capsule()
-                    .fill(step == currentStep ? FNColors.sage : FNColors.tan)
+                    .fill(step == currentStep ? activeColor : FNColors.tan)
                     .frame(
                         width: step == currentStep ? 24 : 8,
                         height: 8

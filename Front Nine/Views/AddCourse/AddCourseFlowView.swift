@@ -180,7 +180,8 @@ struct AddCourseFlowView: View {
             RankedCourse(
                 id: $0.id, name: $0.name, city: $0.city,
                 state: $0.state, country: $0.country,
-                rating: $0.rating, rankPosition: $0.rankPosition
+                rating: $0.rating, rankPosition: $0.rankPosition,
+                latitude: $0.latitude, longitude: $0.longitude
             )
         }
         let shifts = RankingEngine.shiftRanksForInsertion(

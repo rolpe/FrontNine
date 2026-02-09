@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct ComparisonView: View {
     let viewModel: ComparisonViewModel
@@ -11,16 +12,32 @@ struct ComparisonView: View {
 
     @State private var selected: ComparisonChoice?
 
+    private var tierColor: Color {
+        viewModel.newCourse.rating.tierColor
+    }
+
     var body: some View {
         if let compareCourse = viewModel.comparisonCourse {
             VStack(spacing: 0) {
-                Spacer()
+                // Map peek (when both courses have coordinates)
+                if let coordA = coordinate(for: viewModel.newCourse),
+                   let coordB = coordinate(lat: compareCourse.latitude, lon: compareCourse.longitude) {
+                    ComparisonMapView(
+                        coordinateA: coordA,
+                        coordinateB: coordB,
+                        nameA: viewModel.newCourse.name,
+                        nameB: compareCourse.name
+                    )
+                    .id(compareCourse.id)
+                }
 
-                // Progress dots
+                // Progress dots (tinted to tier color)
                 ProgressDotsView(
                     currentStep: viewModel.currentStep,
-                    totalSteps: viewModel.totalSteps
+                    totalSteps: viewModel.totalSteps,
+                    activeColor: tierColor
                 )
+                .padding(.top, 24)
                 .padding(.bottom, 12)
 
                 // Question
@@ -88,6 +105,16 @@ struct ComparisonView: View {
         }
     }
 
+    private func coordinate(for course: Course) -> CLLocationCoordinate2D? {
+        guard let lat = course.latitude, let lon = course.longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+
+    private func coordinate(lat: Double?, lon: Double?) -> CLLocationCoordinate2D? {
+        guard let lat, let lon else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+
     private func choose(_ choice: ComparisonChoice) {
         guard selected == nil else { return }
         selected = choice
@@ -104,15 +131,19 @@ struct ComparisonView: View {
 #Preview {
     let course = Course(
         name: "Whistling Straits", city: "Kohler", state: "WI",
-        courseType: .public, rating: .liked
+        courseType: .public, rating: .liked,
+        latitude: 43.8531, longitude: -87.7272
     )
     let existing = [
         Course(name: "TPC Sawgrass", city: "Ponte Vedra Beach", state: "FL",
-               courseType: .public, rating: .liked, rankPosition: 1),
+               courseType: .public, rating: .liked, rankPosition: 1,
+               latitude: 30.1975, longitude: -81.3942),
         Course(name: "Bethpage Black", city: "Farmingdale", state: "NY",
-               courseType: .public, rating: .liked, rankPosition: 2),
+               courseType: .public, rating: .liked, rankPosition: 2,
+               latitude: 40.7445, longitude: -73.4539),
         Course(name: "Torrey Pines South", city: "La Jolla", state: "CA",
-               courseType: .public, rating: .liked, rankPosition: 3),
+               courseType: .public, rating: .liked, rankPosition: 3,
+               latitude: 32.8998, longitude: -117.2523),
     ]
     let vm = ComparisonViewModel(newCourse: course, existingCourses: existing)
     ComparisonView(viewModel: vm, onComplete: {})
