@@ -34,6 +34,7 @@ struct CourseRowView: View {
                         .foregroundStyle(FNColors.textLight)
 
                     TypePill(courseType: course.courseType)
+                    HolesPill(holeCount: course.holeCount)
                 }
             }
 

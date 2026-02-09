@@ -14,4 +14,5 @@ struct CourseEnrichmentData {
     let slope: Int?
     let totalYards: Int?
     let teeName: String?
+    let numberOfHoles: Int?
 }

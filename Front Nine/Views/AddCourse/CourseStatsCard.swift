@@ -17,7 +17,7 @@ struct CourseStatsCard: View {
     var body: some View {
         VStack(spacing: 12) {
             if let teeName {
-                Text(teeName.uppercased())
+                Text("\(teeName.uppercased()) TEES")
                     .font(FNFonts.label())
                     .foregroundStyle(FNColors.textLight)
                     .kerning(0.3)

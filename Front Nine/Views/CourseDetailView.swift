@@ -72,6 +72,7 @@ struct CourseDetailView: View {
                             .lineSpacing(2)
 
                         TypePill(courseType: course.courseType)
+                        HolesPill(holeCount: course.holeCount)
                     }
 
                     Text(course.locationText)

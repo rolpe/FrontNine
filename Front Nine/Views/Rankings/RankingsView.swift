@@ -134,27 +134,66 @@ struct RankingsView: View {
     }
 
     private func seedSampleCourses() {
-        // Clear existing first
         deleteAllCourses()
 
-        let samples: [(String, String, String, String?, CourseType, Int, Rating)] = [
-            ("Pebble Beach Golf Links", "Pebble Beach", "CA", "United States", .public, 18, .loved),
-            ("Augusta National Golf Club", "Augusta", "GA", "United States", .private, 18, .loved),
-            ("St Andrews Old Course", "St Andrews", "", "Scotland", .public, 18, .loved),
-            ("Torrey Pines South", "La Jolla", "CA", "United States", .public, 18, .liked),
-            ("Bethpage Black", "Farmingdale", "NY", "United States", .public, 18, .liked),
-            ("Bandon Dunes", "Bandon", "OR", "United States", .public, 18, .liked),
-            ("Muni Executive 9", "Springfield", "IL", "United States", .public, 9, .disliked),
-            ("Desert Winds Golf", "Tucson", "AZ", "United States", .public, 18, .disliked),
+        let samples: [Course] = [
+            Course(
+                name: "Pebble Beach Golf Links", city: "Pebble Beach", state: "CA",
+                courseType: .public, rating: .loved, rankPosition: 1,
+                country: "United States",
+                par: 72, courseRating: 75.5, slope: 145, totalYards: 6828, teeName: "Blue",
+                latitude: 36.5682, longitude: -121.9487
+            ),
+            Course(
+                name: "Augusta National Golf Club", city: "Augusta", state: "GA",
+                courseType: .private, rating: .loved, rankPosition: 2,
+                country: "United States",
+                par: 72, courseRating: 76.2, slope: 148, totalYards: 7510,
+                latitude: 33.5033, longitude: -82.0231
+            ),
+            Course(
+                name: "St Andrews Old Course", city: "St Andrews", state: "",
+                courseType: .public, rating: .loved, rankPosition: 3,
+                country: "Scotland",
+                par: 72, courseRating: 73.1, slope: 132, totalYards: 6721, teeName: "White",
+                latitude: 56.3433, longitude: -2.8027
+            ),
+            Course(
+                name: "Torrey Pines South", city: "La Jolla", state: "CA",
+                courseType: .public, rating: .liked, rankPosition: 4,
+                country: "United States",
+                par: 72, courseRating: 74.6, slope: 143, totalYards: 7258, teeName: "Blue",
+                latitude: 32.8998, longitude: -117.2523
+            ),
+            Course(
+                name: "Bethpage Black", city: "Farmingdale", state: "NY",
+                courseType: .public, rating: .liked, rankPosition: 5,
+                country: "United States",
+                par: 71, courseRating: 76.6, slope: 155, totalYards: 7468, teeName: "Blue",
+                latitude: 40.7445, longitude: -73.4539
+            ),
+            Course(
+                name: "Bandon Dunes", city: "Bandon", state: "OR",
+                courseType: .public, rating: .liked, rankPosition: 6,
+                country: "United States",
+                par: 72, courseRating: 74.3, slope: 140, totalYards: 6732, teeName: "White",
+                latitude: 43.1869, longitude: -124.3694
+            ),
+            Course(
+                name: "Muni Executive 9", city: "Springfield", state: "IL",
+                courseType: .public, holeCount: 9, rating: .disliked, rankPosition: 7,
+                country: "United States",
+                latitude: 39.7817, longitude: -89.6501
+            ),
+            Course(
+                name: "Desert Winds Golf", city: "Tucson", state: "AZ",
+                courseType: .public, rating: .disliked, rankPosition: 8,
+                country: "United States",
+                latitude: 32.2226, longitude: -110.9747
+            ),
         ]
 
-        for (index, sample) in samples.enumerated() {
-            let course = Course(
-                name: sample.0, city: sample.1, state: sample.2,
-                courseType: sample.4, holeCount: sample.5,
-                rating: sample.6, rankPosition: index + 1
-            )
-            course.country = sample.3
+        for course in samples {
             modelContext.insert(course)
         }
     }
@@ -170,22 +209,66 @@ struct RankingsView: View {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Course.self, configurations: config)
 
-    let sampleCourses: [(String, String, String, CourseType, Rating, Int)] = [
-        ("Pebble Beach Golf Links", "Pebble Beach", "CA", .public, .loved, 1),
-        ("Pinehurst No. 2", "Pinehurst", "NC", .public, .loved, 2),
-        ("Bandon Dunes", "Bandon", "OR", .public, .loved, 3),
-        ("Bethpage Black", "Farmingdale", "NY", .public, .liked, 4),
-        ("TPC Sawgrass", "Ponte Vedra Beach", "FL", .public, .liked, 5),
-        ("Torrey Pines South", "La Jolla", "CA", .public, .liked, 6),
-        ("Whistling Straits", "Kohler", "WI", .public, .liked, 7),
-        ("Chambers Bay", "University Place", "WA", .public, .disliked, 8),
+    let samples: [Course] = [
+        Course(
+            name: "Pebble Beach Golf Links", city: "Pebble Beach", state: "CA",
+            courseType: .public, rating: .loved, rankPosition: 1,
+            country: "United States",
+            par: 72, courseRating: 75.5, slope: 145, totalYards: 6828, teeName: "Blue",
+            latitude: 36.5682, longitude: -121.9487
+        ),
+        Course(
+            name: "Pinehurst No. 2", city: "Pinehurst", state: "NC",
+            courseType: .public, rating: .loved, rankPosition: 2,
+            country: "United States",
+            par: 72, courseRating: 75.3, slope: 143, totalYards: 7588, teeName: "Blue",
+            latitude: 35.1954, longitude: -79.4700
+        ),
+        Course(
+            name: "Bandon Dunes", city: "Bandon", state: "OR",
+            courseType: .public, rating: .loved, rankPosition: 3,
+            country: "United States",
+            par: 72, courseRating: 74.3, slope: 140, totalYards: 6732, teeName: "White",
+            latitude: 43.1869, longitude: -124.3694
+        ),
+        Course(
+            name: "Bethpage Black", city: "Farmingdale", state: "NY",
+            courseType: .public, rating: .liked, rankPosition: 4,
+            country: "United States",
+            par: 71, courseRating: 76.6, slope: 155, totalYards: 7468, teeName: "Blue",
+            latitude: 40.7445, longitude: -73.4539
+        ),
+        Course(
+            name: "TPC Sawgrass", city: "Ponte Vedra Beach", state: "FL",
+            courseType: .public, rating: .liked, rankPosition: 5,
+            country: "United States",
+            par: 72, courseRating: 76.4, slope: 155, totalYards: 7245, teeName: "Blue",
+            latitude: 30.1975, longitude: -81.3942
+        ),
+        Course(
+            name: "Torrey Pines South", city: "La Jolla", state: "CA",
+            courseType: .public, rating: .liked, rankPosition: 6,
+            country: "United States",
+            par: 72, courseRating: 74.6, slope: 143, totalYards: 7258, teeName: "Blue",
+            latitude: 32.8998, longitude: -117.2523
+        ),
+        Course(
+            name: "Whistling Straits", city: "Kohler", state: "WI",
+            courseType: .public, rating: .liked, rankPosition: 7,
+            country: "United States",
+            par: 72, courseRating: 76.7, slope: 151, totalYards: 7390, teeName: "Blue",
+            latitude: 43.8531, longitude: -87.7272
+        ),
+        Course(
+            name: "Chambers Bay", city: "University Place", state: "WA",
+            courseType: .public, rating: .disliked, rankPosition: 8,
+            country: "United States",
+            par: 72, courseRating: 74.3, slope: 138, totalYards: 7585, teeName: "Blue",
+            latitude: 47.2003, longitude: -122.5731
+        ),
     ]
 
-    for (name, city, state, type, rating, rank) in sampleCourses {
-        let course = Course(
-            name: name, city: city, state: state,
-            courseType: type, rating: rating, rankPosition: rank
-        )
+    for course in samples {
         container.mainContext.insert(course)
     }
 

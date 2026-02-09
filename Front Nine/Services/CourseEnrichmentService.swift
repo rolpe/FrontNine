@@ -39,7 +39,8 @@ class CourseEnrichmentService {
             courseRating: tee.courseRating,
             slope: tee.slopeRating,
             totalYards: tee.totalYards,
-            teeName: tee.teeName
+            teeName: tee.teeName,
+            numberOfHoles: tee.numberOfHoles
         )
     }
 
@@ -50,7 +51,8 @@ class CourseEnrichmentService {
         defer { isLoading = false }
 
         do {
-            let courses = try await apiService.search(query: searchResult.name)
+            let query = Self.cleanSearchQuery(searchResult.name)
+            let courses = try await apiService.search(query: query)
             let result = Self.findMatch(in: courses, city: searchResult.city)
 
             switch result {
@@ -118,6 +120,33 @@ class CourseEnrichmentService {
             // Multiple city matches — still ambiguous (multi-course club)
             return .ambiguous(cityMatches)
         }
+    }
+
+    /// Strips common golf suffixes from a MapKit name to improve API search matching.
+    /// e.g. "Liberty National Golf Course" → "Liberty National"
+    static func cleanSearchQuery(_ name: String) -> String {
+        let suffixes = [
+            "Golf & Country Club",
+            "Golf and Country Club",
+            "Golf Country Club",
+            "Country Club",
+            "Golf Course",
+            "Golf Club",
+            "Golf Links",
+            "Golf Center",
+            "Golf Resort",
+        ]
+
+        var cleaned = name
+        for suffix in suffixes {
+            if cleaned.lowercased().hasSuffix(suffix.lowercased()) {
+                cleaned = String(cleaned.dropLast(suffix.count))
+                    .trimmingCharacters(in: .whitespaces)
+                break
+            }
+        }
+
+        return cleaned.isEmpty ? name : cleaned
     }
 
     static func defaultTeeBox(from tees: GolfCourseAPITees) -> GolfCourseAPITeeBox? {

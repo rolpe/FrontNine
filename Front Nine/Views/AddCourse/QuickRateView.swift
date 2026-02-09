@@ -26,28 +26,32 @@ struct QuickRateView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Back button (fixed above scroll)
-            Button(action: onBack) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("Back")
-                        .font(.system(size: 16, weight: .medium))
-                }
-                .foregroundStyle(FNColors.sage)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Map peek (scrolls with content)
-                    MapPeekView(
-                        coordinate: searchResult.coordinate,
-                        courseName: searchResult.name,
-                        height: 120
-                    )
+                    // Map peek with back button overlay
+                    ZStack(alignment: .topLeading) {
+                        MapPeekView(
+                            coordinate: searchResult.coordinate,
+                            courseName: searchResult.name,
+                            height: 120
+                        )
+
+                        Button(action: onBack) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundStyle(FNColors.sage)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.thinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .padding(.leading, 12)
+                        .padding(.top, 12)
+                    }
 
                 VStack(alignment: .leading, spacing: 24) {
                     // Course info header
@@ -170,6 +174,8 @@ struct QuickRateView: View {
                 holeCount = course.holeCount
                 selectedRating = course.rating
                 notes = course.notes ?? ""
+            } else if let holes = enrichmentData?.numberOfHoles {
+                holeCount = holes
             }
         }
     }
