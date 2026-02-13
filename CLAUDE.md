@@ -11,38 +11,47 @@ Be a thought partner, not just an executor. Before implementing changes, briefly
 - Xcode 16+ with `PBXFileSystemSynchronizedRootGroup` — new files on disk are auto-detected, no pbxproj editing needed
 - Apple MapKit for course search (`MKLocalSearch` with golf POI filter)
 - CoreLocation for nearby course discovery
-- Backend TBD (auth + data sync for upcoming social features)
+- GolfCourseAPI.com for course enrichment (par, slope, rating, yardage, tee boxes)
+- No external dependencies
 
 ## Architecture & Directory Structure
 ```
 Front Nine/
   Models/
-    Course.swift           — @Model entity, CourseType & Rating enums, locationText/formatLocation helpers
-    CourseSearchResult.swift — Value type from MapKit search (not @Model), iOS 26 API compat
-    USState.swift          — 50 states + DC enum with bidirectional name↔abbreviation lookup
+    Course.swift              — @Model entity, CourseType & Rating enums, locationText/formatLocation helpers
+    CourseSearchResult.swift   — Value type from MapKit search (not @Model), iOS 26 API compat
+    CourseEnrichmentData.swift — Lightweight value type for threading enrichment through add-course flow
+    GolfCourseAPIModels.swift  — Codable structs for GolfCourseAPI.com responses
+    USState.swift             — 50 states + DC enum with bidirectional name↔abbreviation lookup
   Theme/
-    FNTheme.swift          — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
+    FNTheme.swift             — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
   Services/
-    RankingEngine.swift    — Pure-logic binary search ranking (NO SwiftUI/SwiftData imports)
-    CourseSearchService.swift — Actor wrapping MKLocalSearch with golf POI filter + nearby search
-    LocationManager.swift  — @Observable CLLocationManager wrapper (one-shot location, permission handling)
-    CourseDeleter.swift    — Static helpers for rank gap closure + deletion
+    RankingEngine.swift       — Pure-logic binary search ranking, RankedCourse value type (no SwiftUI/SwiftData imports)
+    CourseSearchService.swift  — Actor wrapping MKLocalSearch with golf POI filter + nearby search
+    GolfCourseAPIService.swift — @MainActor service wrapping GolfCourseAPI.com (search, fetch, in-memory cache)
+    CourseEnrichmentService.swift — @Observable matching + tee selection logic, suffix stripping for API search
+    LocationManager.swift     — @Observable CLLocationManager wrapper (one-shot location, permission handling)
+    CourseDeleter.swift       — Static helpers for rank gap closure + deletion
+    Secrets.swift             — API key (gitignored)
   ViewModels/
     AddCourseViewModel.swift    — Manual add form state, validation, country auto-fill from locale
     ComparisonViewModel.swift   — Binary search state machine for head-to-head ranking
     CourseSearchViewModel.swift — Search query/results/loading/error state, recent searches (UserDefaults), already-added detection
   Views/
     Rankings/
-      RankingsView.swift          — Main screen, List with tier sections, nav to detail, add sheet
-      CourseRowView.swift          — Row: rank number, tier color bar, name, location, swipe delete
+      RankingsView.swift          — Main screen, List with tier sections, nav to detail, add sheet, debug seed tools
+      CourseRowView.swift          — Row: rank number, tier color bar, name, location, pills, swipe delete
       TierSectionView.swift       — Section header with FlagIcon + tier label
       RankingsEmptyStateView.swift — Empty state CTA
     AddCourse/
       AddCourseFlowView.swift      — Sheet container: 5-state enum flow (search→detail→quickRate→manualAdd→comparison)
       SearchCourseView.swift       — Search bar with 400ms debounce, results/loading/error/empty states
       CourseSearchResultRow.swift   — Search result row: flag icon, name, location, chevron
-      CourseDetailPreviewView.swift — Selected course preview with "Add & Rate" button
-      QuickRateView.swift          — Compact form: course type + holes + rating, sticky bottom button
+      CourseDetailPreviewView.swift — Selected course preview with enrichment data, tee picker, disambiguation
+      CourseStatsCard.swift         — Reusable 4-column stats card (par/rating/slope/yards + tee name)
+      TeePickerView.swift          — Horizontal capsule tee selector
+      CourseDisambiguationView.swift — Multi-course club picker when API returns ambiguous matches
+      QuickRateView.swift          — Compact form: course type + holes + rating, map overlay, sticky bottom button
       AddCourseView.swift          — Full manual add form (NavigationStack, CourseFormFields)
       PillButtonView.swift         — Reusable capsule toggle button (interactive selection)
       RatingPickerView.swift       — 3-option rating selector with color bars and flag icons
@@ -50,23 +59,27 @@ Front Nine/
       CourseFormFields.swift   — Reusable form: name, city, state/region, country, type, holes, rating, notes
       FNTextField.swift        — Styled text input with label, char limit, tan border
       FlagIcon.swift           — Canvas-drawn flag with filled/outlined/dashed variants per rating
-      TypePill.swift           — Read-only "PUBLIC"/"PRIVATE" capsule pill (sage-tinted)
+      MapPeekView.swift        — Non-interactive map with gradient fade and Directions button
+      TypePill.swift           — InfoPill base + TypePill (private only) + HolesPill (non-18 only)
     Comparison/
-      ComparisonView.swift     — Head-to-head: two cards, OR divider, "I can't decide", progress dots
+      ComparisonView.swift     — Head-to-head: two-pin map, tier-colored dots, cards, OR divider, "I can't decide"
+      ComparisonMapView.swift  — Two-pin map with auto-fit region, recreated per comparison step via .id()
       ComparisonCardView.swift — Selectable course card with name + location
-      ProgressDotsView.swift   — Animated dot progress indicator
-    CourseDetailView.swift     — Detail/edit/comparison reranking: read-only cards, edit mode, rating change triggers re-rank
+      ProgressDotsView.swift   — Animated dot progress indicator with configurable activeColor
+    CourseDetailView.swift     — Detail/edit/comparison reranking: map peek, stats card, read-only cards, edit mode
   Front_NineApp.swift          — @main entry, SwiftData ModelContainer, RankingsView root
   Supporting Files/
     FrontNine_MVP_PRD.md       — Original product requirements document
 
 Front NineTests/
-  RankingEngineTests.swift         — Binary search logic, tier boundaries, rank shifting
-  ComparisonViewModelTests.swift   — State machine, final rank, rank shifts
-  AddCourseViewModelTests.swift    — Validation, buildCourse, reset
-  CourseSearchResultTests.swift    — USState lookup, CourseSearchResult equality
-  CourseSearchViewModelTests.swift — Recent searches (save/dedup/limit/persist), already-added detection
-  Front_NineTests.swift            — Course model init, enums, SwiftData persistence
+  RankingEngineTests.swift           — Binary search logic, tier boundaries, rank shifting
+  ComparisonViewModelTests.swift     — State machine, final rank, rank shifts
+  AddCourseViewModelTests.swift      — Validation, buildCourse, reset
+  CourseSearchResultTests.swift      — USState lookup, CourseSearchResult equality
+  CourseSearchViewModelTests.swift   — Recent searches (save/dedup/limit/persist), already-added detection
+  CourseEnrichmentServiceTests.swift — Matching, tee selection, suffix stripping, enrichment data
+  GolfCourseAPIModelsTests.swift     — JSON decoding, missing fields, empty arrays
+  Front_NineTests.swift              — Course model init, enums, SwiftData persistence, enrichment fields
 ```
 
 ## Key Design Decisions & Conventions
@@ -106,28 +119,30 @@ Front NineTests/
 - **Manual add course**: Full form with name, city, state/region, country, type, holes, rating, notes
 - **Binary search ranking**: Head-to-head comparisons within rating tier, O(log N) comparisons
 - **Rankings display**: Tier sections (Loved/Liked/Didn't Love), rank numbers, tier color bars, scrolling (non-sticky) headers
-- **Course detail**: Read-only card layout, edit mode (with CourseFormFields), delete with confirmation
+- **Course detail**: Read-only card layout, map peek, stats card (enriched courses), edit mode (with CourseFormFields), delete with confirmation
 - **Rating change re-ranking**: Edit rating → close rank gap → new comparison flow → re-insert
 - **Re-rank from search**: Selecting an already-added course shows "Re-rank This Course" → pre-filled quick rate → forced comparison (never compares against itself)
 - **Manual reorder**: Edit mode with drag handles (onMove within tier)
 - **International courses**: Country field, locale-aware display, non-US state/region support
-- **TypePill**: Read-only "PUBLIC"/"PRIVATE" capsule on rankings rows and detail view header
+- **GolfCourseAPI enrichment**: Auto-fetch par, slope, course rating, yardage when previewing a course; tee picker (defaults to White/middle); disambiguation UI for multi-course clubs; graceful degradation (silent failure, card simply hidden)
+- **Map peek**: Non-interactive map with gradient fade on CourseDetailPreviewView, QuickRateView (back button overlay), and CourseDetailView; Directions button on detail view
+- **Comparison map**: Two-pin map at top of comparison screen showing both courses, auto-fit region with generous padding, recreated per step via `.id()`
+- **TypePill / HolesPill**: Exception-only pills — TypePill shows only for private courses, HolesPill shows only for non-18-hole courses
 - **Recent searches**: Last 4 searches persisted in UserDefaults, shown as tappable chips in search empty state, case-insensitive dedup
 - **Already-added detection**: Green checkmark badge on search results for courses already in rankings (indicator only, still tappable)
 - **Error state polish**: Coral-tinted card with "Try Again" button for real errors; MapKit "no results" handled as empty state (not error)
 - **Notes in quick rate**: Notes field available during both new add and re-rank flows
 - **Nearby courses**: LocationManager with one-shot location, auto-load when authorized, permission prompt/denied/settings UI, max 5 results in search empty state
 - **Keyboard dismissal**: `.scrollDismissesKeyboard(.immediately)` + `.onTapGesture` on search ScrollView
+- **Tier-colored progress dots**: Comparison screen progress dots tinted to rating tier color (coral/sage/warmGray)
 - **Debug tools** (`#if DEBUG`): Ladybug toolbar button → seed 8 sample courses / delete all courses
-- **81 unit tests passing** across 6 test files
-
-### Optional Fields (Future-Proofing)
-- `par: Int?`, `courseRating: Double?`, `slope: Int?` on Course — all nil, awaiting golf-specific API
+- **111 unit tests passing** across 8 test files
 
 ### Not Yet Implemented
 - **User registration & auth**: Sign in with Apple (+ potentially email/password), backend TBD
 - **Data sync**: Local SwiftData ↔ remote store sync
 - **Social features**: User profiles, following, shared rankings, activity feeds
+- **Comparison fallback**: No visual fallback when manually-added courses lack coordinates (map area is simply blank)
 
 ## Next Steps
 
@@ -143,13 +158,26 @@ User registration and authentication — deciding on backend (CloudKit vs Fireba
 ### Swift Pitfalls
 - `Self.staticProperty` **cannot** be used as a stored property default initializer (covariant Self error). Use a file-private `let` or closure instead — see AddCourseViewModel.swift's `defaultCountry`
 - `@MainActor` is required for MKMapItem property access from actor contexts. CourseSearchResult.from(mapItem:) is `@MainActor`, called via `await MainActor.run {}` in CourseSearchService
+- Default parameter expressions are **nonisolated** even on `@MainActor` inits — use optional params with `??` in body instead
+- `actor` → `@MainActor final class` for API services when all callers are MainActor (e.g., GolfCourseAPIService) — avoids isolation mismatch, URLSession async methods still run in background
+- `Map(initialPosition:)` only sets map position on first render — use `.id(someChangingValue)` to force SwiftUI to recreate the Map when the region should change
 
 ### Data Model Subtleties
 - `Course.state` is a non-optional `String` but CAN be empty (international courses without states)
 - `Course.country` is `String?` — nil for courses added before the country field existed, nil when left blank
-- `RankedCourse` (in RankingEngine.swift) mirrors Course fields as a value type — when you add fields to Course, also add to RankedCourse and update all construction sites (ComparisonViewModel, CourseDetailView.applyReranking, tests)
+- `RankedCourse` (in RankingEngine.swift) mirrors Course fields as a value type — when you add fields to Course, also add to RankedCourse and update all construction sites (ComparisonViewModel x2, AddCourseFlowView.applyRerank, CourseDetailView.applyReranking, RankingEngineTests)
+- `RankedCourse` fields: id, name, city, state, country, rating, rankPosition, latitude, longitude
+- `Course` enrichment fields: `par: Int?`, `courseRating: Double?`, `slope: Int?`, `totalYards: Int?`, `golfCourseApiId: Int?`, `teeName: String?` — populated from GolfCourseAPI.com, nil for manual adds or API failures
+- `Course.hasEnrichedData` computed property: true when par, courseRating, or slope is non-nil
 - `rankPosition` is 1-indexed, contiguous within the full list (not per-tier)
 - SwiftData handles additive schema migration automatically (new optional fields just work)
+
+### GolfCourseAPI Integration
+- CourseEnrichmentService strips common suffixes ("Golf Club", "Country Club", "Golf Course", etc.) from course names before API search — improves match rates
+- Matching algorithm: search by name → 0 results = silent nil, 1 result = auto-match, multiple = filter by city → 1 city match = auto-match, else show disambiguation
+- Default tee selection: prefer "White" male tee, fallback to middle by yardage
+- `CourseEnrichmentData` is a lightweight value type threaded through the flow (preview → quickRate → Course creation) — not stored as a separate entity
+- API key stored in `Secrets.swift` (gitignored), accessed via `Secrets.golfCourseAPIKey`
 
 ### Flow Architecture
 - AddCourseFlowView's 5-state enum: `.search` → `.detail(CourseSearchResult)` → `.quickRate(CourseSearchResult)` → `.comparison(ComparisonViewModel)`. Also `.manualAdd` as alternate path from search.

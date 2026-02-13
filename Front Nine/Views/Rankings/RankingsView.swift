@@ -44,6 +44,7 @@ struct RankingsView: View {
                         }
                     }
                     .listStyle(.plain)
+                    .listSectionSpacing(.compact)
                     .scrollContentBackground(.hidden)
                 }
             }
@@ -51,12 +52,6 @@ struct RankingsView: View {
             .navigationTitle("My Rankings")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if !courses.isEmpty {
-                        EditButton()
-                            .foregroundStyle(FNColors.sage)
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showingAddCourse = true }) {
                         Image(systemName: "plus")
@@ -92,22 +87,48 @@ struct RankingsView: View {
 
     private func tierSection(rating: Rating, courses: [Course]) -> some View {
         Section {
-            TierHeaderView(rating: rating)
+            TierHeaderView(rating: rating, count: courses.count)
                 .listRowBackground(FNColors.cream)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
 
             ForEach(courses, id: \.id) { course in
                 NavigationLink(value: course.id) {
                     CourseRowView(course: course, onDelete: deleteCourse)
                 }
-                .listRowBackground(FNColors.cream)
+                .listRowBackground(rowBackground(for: course, rating: rating))
+                .listRowSeparator(course.rankPosition == 1 ? .hidden : .automatic)
                 .listRowSeparatorTint(FNColors.tan.opacity(0.25))
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             }
             .onMove { source, destination in
                 moveCourses(in: rating, from: source, to: destination)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func rowBackground(for course: Course, rating: Rating) -> some View {
+        if course.rankPosition == 1 {
+            ZStack {
+                FNColors.cream
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [FNColors.coral.opacity(0.05), FNColors.tan.opacity(0.06)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(FNColors.coral.opacity(0.1), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+            }
+        } else {
+            FNColors.cream.overlay(rating.tierColor.opacity(0.04))
         }
     }
 

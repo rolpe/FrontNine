@@ -7,16 +7,34 @@ import SwiftUI
 
 struct TierHeaderView: View {
     let rating: Rating
+    var count: Int = 0
 
     var body: some View {
-        HStack(spacing: 6) {
-            FlagIcon(variant: rating.flagVariant, color: rating.tierColor, size: 16)
+        HStack(spacing: 8) {
+            // Flag accent
+            FlagIcon(variant: rating.flagVariant, color: rating.tierColor, size: 14)
+
+            // Tier label
             Text(rating.tierLabel)
-                .font(FNFonts.label())
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(rating.tierColor)
-                .kerning(0.5)
+                .kerning(1.5)
+
+            // Fading gradient line
+            LinearGradient(
+                colors: [rating.tierColor.opacity(0.2), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 1)
+
+            // Count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(rating.tierColor.opacity(0.5))
+            }
         }
         .textCase(nil)
-        .listRowInsets(EdgeInsets(top: 24, leading: 16, bottom: 8, trailing: 16))
     }
 }

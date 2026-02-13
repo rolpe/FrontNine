@@ -16,13 +16,14 @@ enum FNColors {
 }
 
 enum FNFonts {
-    static func header() -> Font { .system(size: 28, weight: .semibold) }
+    static func header() -> Font { .system(size: 28, weight: .semibold, design: .serif) }
     static func body() -> Font { .system(size: 17, weight: .regular) }
     static func bodyMedium() -> Font { .system(size: 17, weight: .medium) }
     static func label() -> Font { .system(size: 13, weight: .semibold) }
-    static func rankNumber() -> Font { .system(size: 24, weight: .light) }
+    static func rankNumber() -> Font { .system(size: 24, weight: .light, design: .serif) }
+    static func heroRankNumber() -> Font { .system(size: 32, weight: .light, design: .serif) }
     static func subtext() -> Font { .system(size: 14, weight: .regular) }
-    static func cardTitle() -> Font { .system(size: 22, weight: .semibold) }
+    static func cardTitle() -> Font { .system(size: 22, weight: .semibold, design: .serif) }
     static func cardSubtitle() -> Font { .system(size: 16, weight: .regular) }
 }
 

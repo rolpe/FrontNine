@@ -43,14 +43,10 @@ struct ComparisonView: View {
                 // Question
                 VStack(spacing: 8) {
                     Text("Which would you\nrather play?")
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 24, weight: .semibold, design: .serif))
                         .foregroundStyle(FNColors.text)
                         .multilineTextAlignment(.center)
                         .tracking(-0.3)
-
-                    Text("Tap your choice")
-                        .font(.system(size: 15))
-                        .foregroundStyle(FNColors.textLight)
                 }
                 .padding(.bottom, 32)
 

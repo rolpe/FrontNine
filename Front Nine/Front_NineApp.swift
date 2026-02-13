@@ -10,6 +10,24 @@ import SwiftData
 
 @main
 struct Front_NineApp: App {
+    init() {
+        if let serifLargeDescriptor = UIFont.systemFont(ofSize: 34, weight: .medium)
+            .fontDescriptor.withDesign(.serif) {
+            let appearance = UINavigationBarAppearance()
+            appearance.largeTitleTextAttributes = [
+                .font: UIFont(descriptor: serifLargeDescriptor, size: 34)
+            ]
+            if let serifInlineDescriptor = UIFont.systemFont(ofSize: 17, weight: .semibold)
+                .fontDescriptor.withDesign(.serif) {
+                appearance.titleTextAttributes = [
+                    .font: UIFont(descriptor: serifInlineDescriptor, size: 17)
+                ]
+            }
+            UINavigationBar.appearance().standardAppearance = appearance
+            UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        }
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Course.self,

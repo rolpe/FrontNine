@@ -67,7 +67,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(course.name)
-                            .font(.system(size: 26, weight: .semibold))
+                            .font(.system(size: 26, weight: .semibold, design: .serif))
                             .foregroundStyle(FNColors.text)
                             .lineSpacing(2)
 
@@ -144,7 +144,7 @@ struct CourseDetailView: View {
                 .kerning(0.3)
 
             Text("#\(course.rankPosition)")
-                .font(.system(size: 32, weight: .semibold))
+                .font(.system(size: 32, weight: .semibold, design: .serif))
                 .foregroundStyle(FNColors.text)
 
             Text("of \(totalCourses) \(totalCourses == 1 ? "course" : "courses")")
