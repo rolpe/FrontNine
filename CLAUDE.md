@@ -12,7 +12,7 @@ Be a thought partner, not just an executor. Before implementing changes, briefly
 - Apple MapKit for course search (`MKLocalSearch` with golf POI filter)
 - CoreLocation for nearby course discovery
 - GolfCourseAPI.com for course enrichment (par, slope, rating, yardage, tee boxes)
-- No external dependencies
+- Firebase (FirebaseAuth + FirebaseFirestore via SPM) for authentication and user profiles
 
 ## Architecture & Directory Structure
 ```
@@ -23,6 +23,7 @@ Front Nine/
     CourseEnrichmentData.swift — Lightweight value type for threading enrichment through add-course flow
     GolfCourseAPIModels.swift  — Codable structs for GolfCourseAPI.com responses
     USState.swift             — 50 states + DC enum with bidirectional name↔abbreviation lookup
+    UserProfile.swift         — Codable struct for Firestore user profile (uid, displayName, handle, dates)
   Theme/
     FNTheme.swift             — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
   Services/
@@ -32,11 +33,14 @@ Front Nine/
     CourseEnrichmentService.swift — @Observable matching + tee selection logic, suffix stripping for API search
     LocationManager.swift     — @Observable CLLocationManager wrapper (one-shot location, permission handling)
     CourseDeleter.swift       — Static helpers for rank gap closure + deletion
+    AuthService.swift         — @MainActor @Observable auth state manager (Sign in with Apple, profile CRUD)
+    FirestoreService.swift    — @MainActor Firestore wrapper + FirestoreServiceProtocol for testability
     Secrets.swift             — API key (gitignored)
   ViewModels/
     AddCourseViewModel.swift    — Manual add form state, validation, country auto-fill from locale
     ComparisonViewModel.swift   — Binary search state machine for head-to-head ranking
     CourseSearchViewModel.swift — Search query/results/loading/error state, recent searches (UserDefaults), already-added detection
+    ProfileSetupViewModel.swift — Handle validation (format + availability), sanitization, save logic
   Views/
     Rankings/
       RankingsView.swift          — Main screen, List with tier sections, nav to detail, add sheet, debug seed tools
@@ -67,7 +71,12 @@ Front Nine/
       ComparisonCardView.swift — Selectable course card with name + location
       ProgressDotsView.swift   — Animated dot progress indicator with configurable activeColor
     CourseDetailView.swift     — Detail/edit/comparison reranking: map peek, stats card, read-only cards, edit mode
-  Front_NineApp.swift          — @main entry, SwiftData ModelContainer, RankingsView root
+    Profile/
+      ProfileFlowView.swift    — Sheet container routing by AuthState (signedOut→signIn, needsSetup→setup, signedIn→profile)
+      SignInView.swift          — Sign in with Apple button, nonce/SHA256, Firebase credential, error handling
+      ProfileSetupView.swift   — Display name + @handle picker with real-time availability check
+      ProfileView.swift        — Signed-in profile card, sign out, delete account with confirmation
+  Front_NineApp.swift          — @main entry, SwiftData ModelContainer, Firebase init, AuthService environment
   Supporting Files/
     FrontNine_MVP_PRD.md       — Original product requirements document
 
@@ -80,6 +89,8 @@ Front NineTests/
   CourseEnrichmentServiceTests.swift — Matching, tee selection, suffix stripping, enrichment data
   GolfCourseAPIModelsTests.swift     — JSON decoding, missing fields, empty arrays
   Front_NineTests.swift              — Course model init, enums, SwiftData persistence, enrichment fields
+  UserProfileTests.swift             — UserProfile init, Codable round-trip, firestoreData output, Equatable
+  ProfileSetupViewModelTests.swift   — Handle validation/sanitization, isValid, async availability, debounce
 ```
 
 ## Key Design Decisions & Conventions
@@ -91,6 +102,9 @@ Front NineTests/
 - **State machine** enum in AddCourseFlowView for multi-step flow — no nested NavigationStack
 - **Pure logic separation**: RankingEngine + RankedCourse have zero SwiftUI/SwiftData imports
 - **In-sheet navigation**: AddCourseFlowView keeps entire flow within one sheet to avoid rankings list flashing
+- **Progressive auth**: App works fully without signing in. Profile icon in toolbar opens auth sheet. AuthService injected via `.environment()`
+- **AuthService**: `@MainActor @Observable` with `AuthState` enum (unknown/signedOut/signedIn/needsSetup). Firebase auth state listener drives transitions. Injectable `FirestoreServiceProtocol` for testability
+- **Profile flow**: ProfileFlowView routes by `authState` — same state-machine sheet pattern as AddCourseFlowView
 
 ### Styling Rules
 - All colors via `FNColors` (cream, text, textLight, sage, tan, coral, warmGray) — never hardcode
@@ -136,17 +150,19 @@ Front NineTests/
 - **Keyboard dismissal**: `.scrollDismissesKeyboard(.immediately)` + `.onTapGesture` on search ScrollView
 - **Tier-colored progress dots**: Comparison screen progress dots tinted to rating tier color (coral/sage/warmGray)
 - **Debug tools** (`#if DEBUG`): Ladybug toolbar button → seed 8 sample courses / delete all courses
-- **111 unit tests passing** across 8 test files
+- **Firebase Auth (Phase 1)**: Sign in with Apple via Firebase, Firestore user profiles with unique @handles, progressive auth (no sign-in gate), profile setup flow with real-time handle availability, sign out + delete account
+- **Profile UI**: ProfileFlowView sheet from toolbar icon (sage when signed in, warmGray when not), SignInView with Apple branding, ProfileSetupView with handle validation, ProfileView with member-since date
+- **145 unit tests passing** across 10 test files
 
 ### Not Yet Implemented
-- **User registration & auth**: Sign in with Apple (+ potentially email/password), backend TBD
-- **Data sync**: Local SwiftData ↔ remote store sync
-- **Social features**: User profiles, following, shared rankings, activity feeds
+- **Data sync**: Local SwiftData ↔ Firestore sync (rankings data)
+- **Social features**: Following, shared rankings, activity feeds
+- **Additional auth providers**: Email/password, Google sign-in
 - **Comparison fallback**: No visual fallback when manually-added courses lack coordinates (map area is simply blank)
 
 ## Next Steps
 
-User registration and authentication — deciding on backend (CloudKit vs Firebase vs Supabase), auth providers (Sign in with Apple, email/password, Google), and whether auth is required or progressive (optional until social features needed).
+Data sync between local SwiftData and Firestore — syncing rankings to the cloud so they persist across devices. Then social features: following other users, viewing shared rankings, activity feeds.
 
 ## Gotchas & Context a New Session Would Miss
 
@@ -191,6 +207,17 @@ User registration and authentication — deciding on backend (CloudKit vs Fireba
 - `courseKey(name:city:state:)` is the shared normalization function — used in both ViewModel and AddCourseFlowView.findExistingCourse
 - MapKit throws `MKError.placemarkNotFound` when no results found — caught and treated as empty results, not an error
 - Recent searches saved after every search attempt (success or failure), capped at 4, case-insensitive dedup
+
+### Firebase & Auth
+- `Firestore.firestore()` must be deferred (computed property) — `FirestoreService` is created before `FirebaseApp.configure()` runs
+- Firestore production mode default rules deny ALL reads/writes — custom security rules must be deployed
+- Views should NOT `import FirebaseAuth` — expose needed properties through `AuthService` computed properties (e.g., `isSignedIn`, `currentUserDisplayName`)
+- Apple only sends user's full name on FIRST sign-in ever — must store during profile setup
+- `user.delete()` may throw `requiresRecentLogin` if auth token is stale — Phase 1 shows error message asking user to sign out and back in
+- `AuthService` uses `FirestoreServiceProtocol` for testability — tests inject `MockFirestoreService`
+- `@State private var authService = AuthService()` in app entry — `startListening()` deferred to `.task` (after `FirebaseApp.configure()`)
+- Sign out doesn't need confirmation (easily reversible); delete account does
+- `ProfileSetupViewModel` debounces handle availability checks by 500ms, cancels in-flight checks on new input
 
 ### Location Display
 - `Course.formatLocation(city:state:country:)` is the single source of truth for formatting — used by Course.locationText, all search result views, and ComparisonView
