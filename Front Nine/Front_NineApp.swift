@@ -7,10 +7,15 @@
 
 import SwiftUI
 import SwiftData
+import FirebaseCore
 
 @main
 struct Front_NineApp: App {
+    @State private var authService = AuthService()
+
     init() {
+        FirebaseApp.configure()
+
         if let serifLargeDescriptor = UIFont.systemFont(ofSize: 34, weight: .medium)
             .fontDescriptor.withDesign(.serif) {
             let appearance = UINavigationBarAppearance()
@@ -44,6 +49,8 @@ struct Front_NineApp: App {
     var body: some Scene {
         WindowGroup {
             RankingsView()
+                .environment(authService)
+                .task { authService.startListening() }
         }
         .modelContainer(sharedModelContainer)
     }

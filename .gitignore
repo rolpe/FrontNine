@@ -15,6 +15,9 @@ Pods/
 # Secrets (API keys — never commit)
 Secrets.swift
 
+# Firebase config (contains API keys)
+GoogleService-Info.plist
+
 # OS files
 .DS_Store
 *.swp

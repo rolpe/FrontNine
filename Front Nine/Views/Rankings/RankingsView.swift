@@ -8,8 +8,10 @@ import SwiftData
 
 struct RankingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(AuthService.self) private var authService
     @Query(sort: \Course.rankPosition) private var courses: [Course]
     @State private var showingAddCourse = false
+    @State private var showingProfile = false
     #if DEBUG
     @State private var showingDebugMenu = false
     #endif
@@ -52,6 +54,12 @@ struct RankingsView: View {
             .navigationTitle("My Rankings")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: { showingProfile = true }) {
+                        Image(systemName: "person.circle")
+                            .foregroundStyle(authService.isSignedIn ? FNColors.sage : FNColors.warmGray)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showingAddCourse = true }) {
                         Image(systemName: "plus")
@@ -81,6 +89,9 @@ struct RankingsView: View {
             }
             .sheet(isPresented: $showingAddCourse) {
                 AddCourseFlowView()
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileFlowView()
             }
         }
     }
@@ -223,6 +234,7 @@ struct RankingsView: View {
 
 #Preview("Empty State") {
     RankingsView()
+        .environment(AuthService())
         .modelContainer(for: Course.self, inMemory: true)
 }
 
@@ -294,5 +306,6 @@ struct RankingsView: View {
     }
 
     return RankingsView()
+        .environment(AuthService())
         .modelContainer(container)
 }
