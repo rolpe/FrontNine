@@ -57,9 +57,6 @@ struct SearchCourseView: View {
                 }
             }
             .scrollDismissesKeyboard(.immediately)
-            .onTapGesture {
-                isSearchFocused = false
-            }
         }
         .background(FNColors.cream)
         .task(id: viewModel.query) {

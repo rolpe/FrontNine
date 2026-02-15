@@ -263,6 +263,13 @@ final class MockFirestoreService: FirestoreServiceProtocol {
     var savedProfile: UserProfile?
     var deletedUID: String?
 
+    // Rankings tracking
+    var savedRankings: [(courseId: String, uid: String)] = []
+    var deletedRankings: [(courseId: String, uid: String)] = []
+    var batchSavedRankings: [[(courseId: String, data: [String: Any])]] = []
+    var rankingsToReturn: [FirestoreRanking] = []
+
+    // Profile
     func fetchUserProfile(uid: String) async throws -> UserProfile? {
         if shouldThrow { throw MockError.testError }
         return profileToReturn
@@ -273,6 +280,13 @@ final class MockFirestoreService: FirestoreServiceProtocol {
         savedProfile = profile
     }
 
+    var updatedFields: [(uid: String, field: String, value: Any)] = []
+
+    func updateProfileField(uid: String, field: String, value: Any) async throws {
+        if shouldThrow { throw MockError.testError }
+        updatedFields.append((uid: uid, field: field, value: value))
+    }
+
     func isHandleAvailable(_ handle: String, excludingUID uid: String?) async throws -> Bool {
         if shouldThrow { throw MockError.testError }
         return handleAvailable
@@ -281,6 +295,27 @@ final class MockFirestoreService: FirestoreServiceProtocol {
     func deleteUserProfile(uid: String) async throws {
         if shouldThrow { throw MockError.testError }
         deletedUID = uid
+    }
+
+    // Rankings
+    func saveRanking(_ ranking: FirestoreRanking, courseId: String, uid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        savedRankings.append((courseId: courseId, uid: uid))
+    }
+
+    func deleteRanking(courseId: String, uid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        deletedRankings.append((courseId: courseId, uid: uid))
+    }
+
+    func batchSaveRankings(_ rankings: [(courseId: String, data: [String: Any])], uid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        batchSavedRankings.append(rankings)
+    }
+
+    func fetchRankings(uid: String) async throws -> [FirestoreRanking] {
+        if shouldThrow { throw MockError.testError }
+        return rankingsToReturn
     }
 
     enum MockError: Error { case testError }

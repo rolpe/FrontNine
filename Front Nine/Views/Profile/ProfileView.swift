@@ -11,6 +11,7 @@ struct ProfileView: View {
 
     @State private var showingDeleteConfirmation = false
     @State private var errorMessage: String?
+    @State private var isTogglingPrivacy = false
 
     private var memberSinceText: String {
         guard let profile = authService.userProfile else { return "" }
@@ -65,6 +66,40 @@ struct ProfileView: View {
                         .padding(.top, 16)
                     }
 
+                    // Rankings count
+                    if let profile = authService.userProfile {
+                        HStack(spacing: 4) {
+                            Text("\(profile.rankingCount)")
+                                .font(.system(size: 17, weight: .semibold, design: .serif))
+                                .foregroundStyle(FNColors.text)
+                            Text(profile.rankingCount == 1 ? "course ranked" : "courses ranked")
+                                .font(.system(size: 15))
+                                .foregroundStyle(FNColors.textLight)
+                        }
+                    }
+
+                    // Privacy toggle
+                    if let profile = authService.userProfile {
+                        VStack(spacing: 6) {
+                            Toggle(isOn: Binding(
+                                get: { profile.isPublic },
+                                set: { _ in togglePrivacy() }
+                            )) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Public Profile")
+                                        .font(FNFonts.bodyMedium())
+                                        .foregroundStyle(FNColors.text)
+                                    Text("When off, only followers can see your rankings")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(FNColors.textLight)
+                                }
+                            }
+                            .tint(FNColors.sage)
+                            .disabled(isTogglingPrivacy)
+                        }
+                        .padding(.horizontal, 20)
+                    }
+
                     // Error message
                     if let errorMessage {
                         Text(errorMessage)
@@ -116,6 +151,18 @@ struct ProfileView: View {
     }
 
     // MARK: - Actions
+
+    private func togglePrivacy() {
+        isTogglingPrivacy = true
+        Task {
+            do {
+                try await authService.togglePrivacy()
+            } catch {
+                errorMessage = "Could not update privacy setting. Please try again."
+            }
+            isTogglingPrivacy = false
+        }
+    }
 
     private func signOut() {
         do {

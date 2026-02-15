@@ -9,14 +9,44 @@ struct UserProfile: Codable, Equatable {
     let uid: String
     var displayName: String
     var handle: String
+    var isPublic: Bool
+    var followerCount: Int
+    var followingCount: Int
+    var rankingCount: Int
     var createdAt: Date
     var updatedAt: Date
+
+    init(
+        uid: String,
+        displayName: String,
+        handle: String,
+        isPublic: Bool = true,
+        followerCount: Int = 0,
+        followingCount: Int = 0,
+        rankingCount: Int = 0,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.uid = uid
+        self.displayName = displayName
+        self.handle = handle
+        self.isPublic = isPublic
+        self.followerCount = followerCount
+        self.followingCount = followingCount
+        self.rankingCount = rankingCount
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
 
     func firestoreData() -> [String: Any] {
         [
             "uid": uid,
             "displayName": displayName,
             "handle": handle,
+            "isPublic": isPublic,
+            "followerCount": followerCount,
+            "followingCount": followingCount,
+            "rankingCount": rankingCount,
             "createdAt": createdAt,
             "updatedAt": updatedAt
         ]

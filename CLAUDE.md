@@ -5,6 +5,14 @@ An iOS golf course ranking app. Users search for real golf courses via MapKit, r
 ## Working Style
 Be a thought partner, not just an executor. Before implementing changes, briefly propose alternatives that could improve the user experience or technical approach. Challenge my assumptions and suggest better paths when you see them. Only skip this step if I explicitly say "just do it" or make clear I want exact execution. Pause for manual testing between implementation chunks.
 
+## UX Principles
+This is a premium consumer app, not a developer tool. Every feature should feel polished and invisible:
+- **No manual steps for automatable work.** If the system can do it, the user shouldn't have to. Sync, caching, data migration — all invisible. Never add a button for something that should happen automatically.
+- **Think from the user's perspective first.** Before proposing any UI, ask: "Would a non-technical user understand why this exists?" If the answer is "only if they understand the backend," it's wrong.
+- **Infrastructure is invisible.** Users don't know or care about Firestore, sync, or cloud storage. They just expect their data to be there. Never expose implementation details in the UI.
+- **Fewer choices > more choices.** Don't ask the user to make decisions the app can make for them. Smart defaults over configuration.
+- **Progressive disclosure.** Show what matters now, hide what doesn't. Advanced options (if any) should be tucked away, not prominent.
+
 ## Tech Stack
 - SwiftUI + SwiftData, targeting iOS 17+
 - Swift Testing framework (`@Test`, `#expect`, `import Testing`)

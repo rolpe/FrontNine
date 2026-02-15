@@ -9,6 +9,7 @@ import SwiftData
 struct RankingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthService.self) private var authService
+    @Environment(RankingSyncService.self) private var syncService
     @Query(sort: \Course.rankPosition) private var courses: [Course]
     @State private var showingAddCourse = false
     @State private var showingProfile = false
@@ -93,6 +94,12 @@ struct RankingsView: View {
             .sheet(isPresented: $showingProfile) {
                 ProfileFlowView()
             }
+            .onChange(of: authService.authState) { _, newValue in
+                guard newValue == .signedIn, !courses.isEmpty,
+                      let uid = authService.userProfile?.uid else { return }
+                syncService.fullSync(courses: courses, uid: uid)
+                authService.userProfile?.rankingCount = courses.count
+            }
         }
     }
 
@@ -150,16 +157,41 @@ struct RankingsView: View {
         for (index, course) in tierCourses.enumerated() {
             course.rankPosition = ranks[index]
         }
+        try? modelContext.save()
+
+        // Sync swapped courses to Firestore
+        if let uid = authService.userProfile?.uid {
+            syncService.syncMultipleCourses(tierCourses, uid: uid)
+        }
     }
 
     private func deleteCourse(_ course: Course) {
+        let courseId = course.id.uuidString
+        let shiftedCourses = courses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
         CourseDeleter.deleteCourse(course, allCourses: courses, modelContext: modelContext)
+
+        // Sync to Firestore
+        if let uid = authService.userProfile?.uid {
+            syncService.deleteCourseFromCloud(courseId: courseId, uid: uid)
+            syncService.syncMultipleCourses(shiftedCourses, uid: uid)
+            let newCount = courses.count - 1
+            syncService.updateRankingCount(newCount, uid: uid)
+            authService.userProfile?.rankingCount = newCount
+        }
     }
 
     // MARK: - Debug Helpers
 
     #if DEBUG
     private func deleteAllCourses() {
+        // Delete from Firestore first (need course IDs before local delete)
+        if let uid = authService.userProfile?.uid {
+            for course in courses {
+                syncService.deleteCourseFromCloud(courseId: course.id.uuidString, uid: uid)
+            }
+            syncService.updateRankingCount(0, uid: uid)
+            authService.userProfile?.rankingCount = 0
+        }
         for course in courses {
             modelContext.delete(course)
         }
@@ -228,6 +260,12 @@ struct RankingsView: View {
         for course in samples {
             modelContext.insert(course)
         }
+
+        // Sync seeded courses to Firestore
+        if let uid = authService.userProfile?.uid {
+            syncService.fullSync(courses: samples, uid: uid)
+            authService.userProfile?.rankingCount = samples.count
+        }
     }
     #endif
 }
@@ -235,6 +273,7 @@ struct RankingsView: View {
 #Preview("Empty State") {
     RankingsView()
         .environment(AuthService())
+        .environment(RankingSyncService())
         .modelContainer(for: Course.self, inMemory: true)
 }
 
@@ -307,5 +346,6 @@ struct RankingsView: View {
 
     return RankingsView()
         .environment(AuthService())
+        .environment(RankingSyncService())
         .modelContainer(container)
 }

@@ -23,8 +23,32 @@ struct UserProfileTests {
         #expect(profile.uid == "abc123")
         #expect(profile.displayName == "Ron")
         #expect(profile.handle == "ronlipkin")
+        #expect(profile.isPublic == true)
+        #expect(profile.followerCount == 0)
+        #expect(profile.followingCount == 0)
+        #expect(profile.rankingCount == 0)
         #expect(profile.createdAt == date)
         #expect(profile.updatedAt == date)
+    }
+
+    @Test func initWithCustomSocialFields() {
+        let date = Date()
+        let profile = UserProfile(
+            uid: "abc123",
+            displayName: "Ron",
+            handle: "ronlipkin",
+            isPublic: false,
+            followerCount: 10,
+            followingCount: 5,
+            rankingCount: 42,
+            createdAt: date,
+            updatedAt: date
+        )
+
+        #expect(profile.isPublic == false)
+        #expect(profile.followerCount == 10)
+        #expect(profile.followingCount == 5)
+        #expect(profile.rankingCount == 42)
     }
 
     // MARK: - Equatable
@@ -80,6 +104,10 @@ struct UserProfileTests {
             "uid": "uid-1",
             "displayName": "John",
             "handle": "john_doe",
+            "isPublic": true,
+            "followerCount": 5,
+            "followingCount": 3,
+            "rankingCount": 12,
             "createdAt": "2024-01-15T12:00:00Z",
             "updatedAt": "2024-06-20T15:30:00Z"
         }
@@ -92,6 +120,10 @@ struct UserProfileTests {
         #expect(profile.uid == "uid-1")
         #expect(profile.displayName == "John")
         #expect(profile.handle == "john_doe")
+        #expect(profile.isPublic == true)
+        #expect(profile.followerCount == 5)
+        #expect(profile.followingCount == 3)
+        #expect(profile.rankingCount == 12)
     }
 
     @Test func mutatingPropertiesWork() {
@@ -126,9 +158,13 @@ struct UserProfileTests {
         #expect(data["uid"] as? String == "uid-1")
         #expect(data["displayName"] as? String == "Test User")
         #expect(data["handle"] as? String == "testuser")
+        #expect(data["isPublic"] as? Bool == true)
+        #expect(data["followerCount"] as? Int == 0)
+        #expect(data["followingCount"] as? Int == 0)
+        #expect(data["rankingCount"] as? Int == 0)
         #expect(data["createdAt"] as? Date == date)
         #expect(data["updatedAt"] as? Date == date)
-        #expect(data.count == 5)
+        #expect(data.count == 9)
     }
 
     @Test func firestoreDataPreservesSpecialCharacters() {

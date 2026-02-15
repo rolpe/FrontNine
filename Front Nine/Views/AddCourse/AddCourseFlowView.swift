@@ -11,6 +11,8 @@ import SwiftData
 struct AddCourseFlowView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(AuthService.self) private var authService
+    @Environment(RankingSyncService.self) private var syncService
     @Query(sort: \Course.rankPosition) private var courses: [Course]
 
     @State private var flowStep: FlowStep = .search
@@ -145,6 +147,17 @@ struct AddCourseFlowView: View {
         }
         vm.newCourse.rankPosition = vm.finalRank
         modelContext.insert(vm.newCourse)
+
+        // Sync to Firestore
+        if let uid = authService.userProfile?.uid {
+            let shiftedIds = Set(vm.rankShifts.keys)
+            let allCoursesAfter = courses + [vm.newCourse]
+            syncService.syncCourse(vm.newCourse, uid: uid)
+            syncService.syncAfterRankChange(allCourses: allCoursesAfter, changedIds: shiftedIds, uid: uid)
+            let newCount = allCoursesAfter.count
+            syncService.updateRankingCount(newCount, uid: uid)
+            authService.userProfile?.rankingCount = newCount
+        }
     }
 
     // MARK: - Re-rank Flow
@@ -193,5 +206,12 @@ struct AddCourseFlowView: View {
             }
         }
         vm.newCourse.rankPosition = vm.finalRank
+
+        // Sync to Firestore
+        if let uid = authService.userProfile?.uid {
+            var changedIds = Set(shifts.keys)
+            changedIds.insert(vm.newCourse.id)
+            syncService.syncAfterRankChange(allCourses: Array(courses), changedIds: changedIds, uid: uid)
+        }
     }
 }

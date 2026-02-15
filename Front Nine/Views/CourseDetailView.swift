@@ -9,6 +9,8 @@ import MapKit
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(AuthService.self) private var authService
+    @Environment(RankingSyncService.self) private var syncService
     @Query(sort: \Course.rankPosition) private var allCourses: [Course]
 
     @Bindable var course: Course
@@ -29,6 +31,7 @@ struct CourseDetailView: View {
     @State private var comparisonVM: ComparisonViewModel?
 
     private var totalCourses: Int { allCourses.count }
+    private var sameTierCourseCount: Int { allCourses.filter { $0.rating == course.rating }.count }
 
     var body: some View {
         Group {
@@ -103,6 +106,27 @@ struct CourseDetailView: View {
                 // Notes section
                 if let notes = course.notes, !notes.isEmpty {
                     notesSection(notes)
+                }
+
+                // Re-rank button (only if tier has other courses to compare against)
+                if sameTierCourseCount > 1 {
+                    Button {
+                        startRerank()
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Re-rank within \(course.rating.label)")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundStyle(FNColors.sage)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(FNColors.sage, lineWidth: 1.5)
+                        )
+                    }
                 }
 
                 // Actions card
@@ -345,14 +369,46 @@ struct CourseDetailView: View {
 
         if ratingChanged {
             handleRatingChange(to: editRating)
+        } else if let uid = authService.userProfile?.uid {
+            // Sync field edits (rating changes sync via handleRatingChange)
+            syncService.syncCourse(course, uid: uid)
         }
 
         isEditing = false
     }
 
+    private func startRerank() {
+        // Close the rank gap at the current position
+        let gapShiftedCourses = allCourses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
+        CourseDeleter.closeRankGap(for: course, in: allCourses)
+
+        // Sync gap-closed courses
+        if let uid = authService.userProfile?.uid {
+            syncService.syncMultipleCourses(gapShiftedCourses, uid: uid)
+        }
+
+        // Compare against all other courses (same tier will be filtered by ComparisonViewModel)
+        let otherCourses = allCourses.filter { $0.id != course.id }
+        let vm = ComparisonViewModel(newCourse: course, existingCourses: otherCourses)
+
+        if vm.needsComparisons {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                comparisonVM = vm
+            }
+        } else {
+            applyReranking(vm)
+        }
+    }
+
     private func handleRatingChange(to newRating: Rating) {
         // 1. Remove from current position and close the gap
+        let gapShiftedCourses = allCourses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
         CourseDeleter.closeRankGap(for: course, in: allCourses)
+
+        // Sync gap-closed courses
+        if let uid = authService.userProfile?.uid {
+            syncService.syncMultipleCourses(gapShiftedCourses, uid: uid)
+        }
 
         // 2. Update rating
         course.rating = newRating
@@ -398,12 +454,32 @@ struct CourseDetailView: View {
             }
         }
         course.rankPosition = vm.finalRank
+
+        // Sync to Firestore
+        if let uid = authService.userProfile?.uid {
+            var changedIds = Set(shifts.keys)
+            changedIds.insert(course.id)
+            syncService.syncAfterRankChange(allCourses: allCourses, changedIds: changedIds, uid: uid)
+        }
+
         comparisonVM = nil
         dismiss()
     }
 
     private func deleteCourse() {
+        let courseId = course.id.uuidString
+        let shiftedCourses = allCourses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
         CourseDeleter.deleteCourse(course, allCourses: allCourses, modelContext: modelContext)
+
+        // Sync to Firestore
+        if let uid = authService.userProfile?.uid {
+            syncService.deleteCourseFromCloud(courseId: courseId, uid: uid)
+            syncService.syncMultipleCourses(shiftedCourses, uid: uid)
+            let newCount = allCourses.count - 1
+            syncService.updateRankingCount(newCount, uid: uid)
+            authService.userProfile?.rankingCount = newCount
+        }
+
         dismiss()
     }
 }

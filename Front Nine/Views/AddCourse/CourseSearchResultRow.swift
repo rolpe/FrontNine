@@ -51,6 +51,7 @@ struct CourseSearchResultRow: View {
                     .foregroundStyle(FNColors.tan)
             }
             .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

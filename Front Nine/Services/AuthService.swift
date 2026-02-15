@@ -99,6 +99,14 @@ final class AuthService {
         self.authState = .signedIn
     }
 
+    func togglePrivacy() async throws {
+        guard let uid = currentUser?.uid, var profile = userProfile else { return }
+        let newValue = !profile.isPublic
+        try await firestoreService.updateProfileField(uid: uid, field: "isPublic", value: newValue)
+        profile.isPublic = newValue
+        self.userProfile = profile
+    }
+
     func checkHandleAvailability(_ handle: String) async -> Bool {
         do {
             return try await firestoreService.isHandleAvailable(handle, excludingUID: currentUser?.uid)
