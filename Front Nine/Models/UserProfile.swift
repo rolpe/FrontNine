@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct UserProfile: Codable, Equatable {
+struct UserProfile: Codable, Equatable, Hashable {
     let uid: String
     var displayName: String
     var handle: String
@@ -42,6 +42,7 @@ struct UserProfile: Codable, Equatable {
         [
             "uid": uid,
             "displayName": displayName,
+            "displayNameLower": displayName.lowercased(),
             "handle": handle,
             "isPublic": isPublic,
             "followerCount": followerCount,

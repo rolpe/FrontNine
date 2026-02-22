@@ -10,6 +10,7 @@ struct RankingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthService.self) private var authService
     @Environment(RankingSyncService.self) private var syncService
+    @Environment(FollowService.self) private var followService
     @Query(sort: \Course.rankPosition) private var courses: [Course]
     @State private var showingAddCourse = false
     @State private var showingProfile = false
@@ -79,7 +80,9 @@ struct RankingsView: View {
             #if DEBUG
             .confirmationDialog("Debug Tools", isPresented: $showingDebugMenu, titleVisibility: .visible) {
                 Button("Seed 8 Sample Courses") { seedSampleCourses() }
+                Button("Seed Test Members") { Task { await seedTestMembers() } }
                 Button("Delete All Courses", role: .destructive) { deleteAllCourses() }
+                Button("Delete Test Members", role: .destructive) { Task { await deleteTestMembers() } }
                 Button("Cancel", role: .cancel) { }
             }
             #endif
@@ -95,10 +98,13 @@ struct RankingsView: View {
                 ProfileFlowView()
             }
             .onChange(of: authService.authState) { _, newValue in
-                guard newValue == .signedIn, !courses.isEmpty,
+                guard newValue == .signedIn,
                       let uid = authService.userProfile?.uid else { return }
-                syncService.fullSync(courses: courses, uid: uid)
-                authService.userProfile?.rankingCount = courses.count
+                if !courses.isEmpty {
+                    syncService.fullSync(courses: courses, uid: uid)
+                    authService.userProfile?.rankingCount = courses.count
+                }
+                Task { await followService.loadFollowingState(uid: uid) }
             }
         }
     }
@@ -267,6 +273,138 @@ struct RankingsView: View {
             authService.userProfile?.rankingCount = samples.count
         }
     }
+
+    // MARK: - Test Members
+
+    private static let testMemberUids = [
+        "test_tiger", "test_rory", "test_nelly", "test_jack", "test_annika"
+    ]
+
+    private func seedTestMembers() async {
+        let firestoreService = FirestoreService()
+        let now = Date()
+
+        // 1) Tiger — public, 5 rankings (all tiers)
+        let tiger = UserProfile(
+            uid: "test_tiger", displayName: "Tiger Woods", handle: "tiger",
+            isPublic: true, followerCount: 0, followingCount: 0, rankingCount: 5,
+            createdAt: now, updatedAt: now
+        )
+        let tigerRankings: [(courseId: String, data: [String: Any])] = [
+            ("t1", FirestoreRanking(id: "t1", name: "Augusta National Golf Club", city: "Augusta", state: "GA", country: "United States", courseType: "Private", holeCount: 18, rating: "Loved", rankPosition: 1, notes: nil, par: 72, courseRating: 76.2, slope: 148, totalYards: 7510, golfCourseApiId: nil, teeName: "Tournament", latitude: 33.5033, longitude: -82.0231, createdAt: now, updatedAt: now).firestoreData()),
+            ("t2", FirestoreRanking(id: "t2", name: "Torrey Pines South", city: "La Jolla", state: "CA", country: "United States", courseType: "Public", holeCount: 18, rating: "Loved", rankPosition: 2, notes: nil, par: 72, courseRating: 74.6, slope: 143, totalYards: 7258, golfCourseApiId: nil, teeName: "Blue", latitude: 32.8998, longitude: -117.2523, createdAt: now, updatedAt: now).firestoreData()),
+            ("t3", FirestoreRanking(id: "t3", name: "St Andrews Old Course", city: "St Andrews", state: "", country: "Scotland", courseType: "Public", holeCount: 18, rating: "Liked", rankPosition: 3, notes: nil, par: 72, courseRating: 73.1, slope: 132, totalYards: 6721, golfCourseApiId: nil, teeName: "White", latitude: 56.3433, longitude: -2.8027, createdAt: now, updatedAt: now).firestoreData()),
+            ("t4", FirestoreRanking(id: "t4", name: "Bethpage Black", city: "Farmingdale", state: "NY", country: "United States", courseType: "Public", holeCount: 18, rating: "Liked", rankPosition: 4, notes: nil, par: 71, courseRating: 76.6, slope: 155, totalYards: 7468, golfCourseApiId: nil, teeName: "Blue", latitude: 40.7445, longitude: -73.4539, createdAt: now, updatedAt: now).firestoreData()),
+            ("t5", FirestoreRanking(id: "t5", name: "Chambers Bay", city: "University Place", state: "WA", country: "United States", courseType: "Public", holeCount: 18, rating: "Didn't Love", rankPosition: 5, notes: "Too many blind shots", par: 72, courseRating: 74.3, slope: 138, totalYards: 7585, golfCourseApiId: nil, teeName: "Blue", latitude: 47.2003, longitude: -122.5731, createdAt: now, updatedAt: now).firestoreData()),
+        ]
+
+        // 2) Rory — private, 3 rankings (tests lock screen)
+        let rory = UserProfile(
+            uid: "test_rory", displayName: "Rory McIlroy", handle: "rorymci",
+            isPublic: false, followerCount: 0, followingCount: 0, rankingCount: 3,
+            createdAt: now, updatedAt: now
+        )
+        let roryRankings: [(courseId: String, data: [String: Any])] = [
+            ("r1", FirestoreRanking(id: "r1", name: "Royal County Down", city: "Newcastle", state: "", country: "Northern Ireland", courseType: "Private", holeCount: 18, rating: "Loved", rankPosition: 1, notes: nil, par: 71, courseRating: nil, slope: nil, totalYards: nil, golfCourseApiId: nil, teeName: nil, latitude: 54.2275, longitude: -5.8891, createdAt: now, updatedAt: now).firestoreData()),
+            ("r2", FirestoreRanking(id: "r2", name: "Pebble Beach Golf Links", city: "Pebble Beach", state: "CA", country: "United States", courseType: "Public", holeCount: 18, rating: "Loved", rankPosition: 2, notes: nil, par: 72, courseRating: 75.5, slope: 145, totalYards: 6828, golfCourseApiId: nil, teeName: "Blue", latitude: 36.5682, longitude: -121.9487, createdAt: now, updatedAt: now).firestoreData()),
+            ("r3", FirestoreRanking(id: "r3", name: "TPC Sawgrass", city: "Ponte Vedra Beach", state: "FL", country: "United States", courseType: "Public", holeCount: 18, rating: "Liked", rankPosition: 3, notes: nil, par: 72, courseRating: 76.4, slope: 155, totalYards: 7245, golfCourseApiId: nil, teeName: "Blue", latitude: 30.1975, longitude: -81.3942, createdAt: now, updatedAt: now).firestoreData()),
+        ]
+
+        // 3) Nelly — public, 0 rankings (tests empty state)
+        let nelly = UserProfile(
+            uid: "test_nelly", displayName: "Nelly Korda", handle: "nellykorda",
+            isPublic: true, followerCount: 0, followingCount: 0, rankingCount: 0,
+            createdAt: now, updatedAt: now
+        )
+
+        // 4) Jack — public, 2 rankings (a legend with a short list)
+        let jack = UserProfile(
+            uid: "test_jack", displayName: "Jack Nicklaus", handle: "goldenbear",
+            isPublic: true, followerCount: 0, followingCount: 0, rankingCount: 2,
+            createdAt: now, updatedAt: now
+        )
+        let jackRankings: [(courseId: String, data: [String: Any])] = [
+            ("j1", FirestoreRanking(id: "j1", name: "Muirfield Village Golf Club", city: "Dublin", state: "OH", country: "United States", courseType: "Private", holeCount: 18, rating: "Loved", rankPosition: 1, notes: nil, par: 72, courseRating: nil, slope: nil, totalYards: nil, golfCourseApiId: nil, teeName: nil, latitude: 40.1131, longitude: -83.1653, createdAt: now, updatedAt: now).firestoreData()),
+            ("j2", FirestoreRanking(id: "j2", name: "Augusta National Golf Club", city: "Augusta", state: "GA", country: "United States", courseType: "Private", holeCount: 18, rating: "Loved", rankPosition: 2, notes: nil, par: 72, courseRating: 76.2, slope: 148, totalYards: 7510, golfCourseApiId: nil, teeName: nil, latitude: 33.5033, longitude: -82.0231, createdAt: now, updatedAt: now).firestoreData()),
+        ]
+
+        // 5) Annika — private, 0 rankings (tests private + empty)
+        let annika = UserProfile(
+            uid: "test_annika", displayName: "Annika Sorenstam", handle: "annika59",
+            isPublic: false, followerCount: 0, followingCount: 0, rankingCount: 0,
+            createdAt: now, updatedAt: now
+        )
+
+        let allProfiles = [tiger, rory, nelly, jack, annika]
+        let allRankings: [(uid: String, rankings: [(courseId: String, data: [String: Any])])] = [
+            ("test_tiger", tigerRankings),
+            ("test_rory", roryRankings),
+            ("test_jack", jackRankings),
+        ]
+
+        do {
+            // Write profiles
+            for profile in allProfiles {
+                try await firestoreService.saveUserProfile(profile)
+            }
+            // Write rankings
+            for (uid, rankings) in allRankings {
+                try await firestoreService.batchSaveRankings(rankings, uid: uid)
+            }
+            // Follow tiger from current user (so Following list has content)
+            if let currentUid = authService.userProfile?.uid {
+                try await followService.follow(targetUid: "test_tiger", currentUid: currentUid)
+                let followingCount = authService.userProfile?.followingCount ?? 0
+                authService.userProfile?.followingCount = followingCount + 1
+
+                // Have Tiger and Jack follow current user (so Followers list has content)
+                try await firestoreService.followUser(currentUid: "test_tiger", targetUid: currentUid)
+                try await firestoreService.followUser(currentUid: "test_jack", targetUid: currentUid)
+                let followerCount = authService.userProfile?.followerCount ?? 0
+                authService.userProfile?.followerCount = followerCount + 2
+            }
+        } catch {
+            print("DEBUG: Failed to seed test members: \(error)")
+        }
+    }
+
+    private func deleteTestMembers() async {
+        let firestoreService = FirestoreService()
+
+        do {
+            // Unfollow any test members we're following
+            if let currentUid = authService.userProfile?.uid {
+                for testUid in Self.testMemberUids {
+                    if followService.isFollowing(testUid) {
+                        try await followService.unfollow(targetUid: testUid, currentUid: currentUid)
+                    }
+                }
+
+                // Remove test members who follow the current user (only if doc exists)
+                for testUid in ["test_tiger", "test_jack"] {
+                    let exists = try await firestoreService.checkFollowing(currentUid: testUid, targetUid: currentUid)
+                    if exists {
+                        try await firestoreService.unfollowUser(currentUid: testUid, targetUid: currentUid)
+                    }
+                }
+
+                // Reconcile counts from actual Firestore subcollections (fixes any drift)
+                let actualFollowing = try await firestoreService.fetchFollowingUids(uid: currentUid)
+                let actualFollowers = try await firestoreService.fetchFollowerUids(uid: currentUid)
+                try await firestoreService.updateProfileField(uid: currentUid, field: "followingCount", value: actualFollowing.count)
+                try await firestoreService.updateProfileField(uid: currentUid, field: "followerCount", value: actualFollowers.count)
+                authService.userProfile?.followingCount = actualFollowing.count
+                authService.userProfile?.followerCount = actualFollowers.count
+            }
+            // Delete profiles (Firestore cascading doesn't delete subcollections,
+            // but for debug purposes this is sufficient — rankings become orphaned)
+            for testUid in Self.testMemberUids {
+                try await firestoreService.deleteUserProfile(uid: testUid)
+            }
+        } catch {
+            print("DEBUG: Failed to delete test members: \(error)")
+        }
+    }
     #endif
 }
 
@@ -274,6 +412,7 @@ struct RankingsView: View {
     RankingsView()
         .environment(AuthService())
         .environment(RankingSyncService())
+        .environment(FollowService())
         .modelContainer(for: Course.self, inMemory: true)
 }
 
@@ -347,5 +486,6 @@ struct RankingsView: View {
     return RankingsView()
         .environment(AuthService())
         .environment(RankingSyncService())
+        .environment(FollowService())
         .modelContainer(container)
 }

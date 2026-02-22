@@ -157,6 +157,7 @@ struct UserProfileTests {
 
         #expect(data["uid"] as? String == "uid-1")
         #expect(data["displayName"] as? String == "Test User")
+        #expect(data["displayNameLower"] as? String == "test user")
         #expect(data["handle"] as? String == "testuser")
         #expect(data["isPublic"] as? Bool == true)
         #expect(data["followerCount"] as? Int == 0)
@@ -164,7 +165,7 @@ struct UserProfileTests {
         #expect(data["rankingCount"] as? Int == 0)
         #expect(data["createdAt"] as? Date == date)
         #expect(data["updatedAt"] as? Date == date)
-        #expect(data.count == 9)
+        #expect(data.count == 10)
     }
 
     @Test func firestoreDataPreservesSpecialCharacters() {

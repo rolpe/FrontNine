@@ -318,5 +318,48 @@ final class MockFirestoreService: FirestoreServiceProtocol {
         return rankingsToReturn
     }
 
+    // Follow tracking
+    var followedPairs: [(currentUid: String, targetUid: String)] = []
+    var unfollowedPairs: [(currentUid: String, targetUid: String)] = []
+    var followingUidsToReturn: [String] = []
+    var followerUidsToReturn: [String] = []
+    var profilesToReturn: [UserProfile] = []
+    var searchResultsToReturn: [UserProfile] = []
+
+    func followUser(currentUid: String, targetUid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        followedPairs.append((currentUid: currentUid, targetUid: targetUid))
+    }
+
+    func unfollowUser(currentUid: String, targetUid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        unfollowedPairs.append((currentUid: currentUid, targetUid: targetUid))
+    }
+
+    func checkFollowing(currentUid: String, targetUid: String) async throws -> Bool {
+        if shouldThrow { throw MockError.testError }
+        return followingUidsToReturn.contains(targetUid)
+    }
+
+    func fetchFollowingUids(uid: String) async throws -> [String] {
+        if shouldThrow { throw MockError.testError }
+        return followingUidsToReturn
+    }
+
+    func fetchFollowerUids(uid: String) async throws -> [String] {
+        if shouldThrow { throw MockError.testError }
+        return followerUidsToReturn
+    }
+
+    func fetchUserProfiles(uids: [String]) async throws -> [UserProfile] {
+        if shouldThrow { throw MockError.testError }
+        return profilesToReturn.filter { uids.contains($0.uid) }
+    }
+
+    func searchUsers(query: String, limit: Int) async throws -> [UserProfile] {
+        if shouldThrow { throw MockError.testError }
+        return Array(searchResultsToReturn.prefix(limit))
+    }
+
     enum MockError: Error { case testError }
 }

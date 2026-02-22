@@ -28,7 +28,7 @@ struct SignInView: View {
                     .font(.system(size: 32, weight: .semibold, design: .serif))
                     .foregroundStyle(FNColors.text)
 
-                Text("Sign in to set up your profile\nand connect with other golfers.")
+                Text("Sign in to set up your profile\nand connect with other members.")
                     .font(FNFonts.subtext())
                     .foregroundStyle(FNColors.textLight)
                     .multilineTextAlignment(.center)

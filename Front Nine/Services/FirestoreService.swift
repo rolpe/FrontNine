@@ -21,6 +21,17 @@ protocol FirestoreServiceProtocol {
     func deleteRanking(courseId: String, uid: String) async throws
     func batchSaveRankings(_ rankings: [(courseId: String, data: [String: Any])], uid: String) async throws
     func fetchRankings(uid: String) async throws -> [FirestoreRanking]
+
+    // Follow (atomic batch writes)
+    func followUser(currentUid: String, targetUid: String) async throws
+    func unfollowUser(currentUid: String, targetUid: String) async throws
+    func checkFollowing(currentUid: String, targetUid: String) async throws -> Bool
+    func fetchFollowingUids(uid: String) async throws -> [String]
+    func fetchFollowerUids(uid: String) async throws -> [String]
+    func fetchUserProfiles(uids: [String]) async throws -> [UserProfile]
+
+    // User Search
+    func searchUsers(query: String, limit: Int) async throws -> [UserProfile]
 }
 
 @MainActor
@@ -131,6 +142,144 @@ final class FirestoreService: FirestoreServiceProtocol {
             createdAt: createdAt,
             updatedAt: updatedAt
         )
+    }
+
+    // MARK: - Follow
+
+    func followUser(currentUid: String, targetUid: String) async throws {
+        let batch = db.batch()
+        let timestamp = FieldValue.serverTimestamp()
+
+        // Add to current user's following subcollection
+        let followingRef = usersCollection.document(currentUid)
+            .collection("following").document(targetUid)
+        batch.setData(["followedAt": timestamp], forDocument: followingRef)
+
+        // Add to target user's followers subcollection
+        let followerRef = usersCollection.document(targetUid)
+            .collection("followers").document(currentUid)
+        batch.setData(["followedAt": timestamp], forDocument: followerRef)
+
+        // Increment counts atomically
+        batch.updateData(
+            ["followingCount": FieldValue.increment(Int64(1))],
+            forDocument: usersCollection.document(currentUid)
+        )
+        batch.updateData(
+            ["followerCount": FieldValue.increment(Int64(1))],
+            forDocument: usersCollection.document(targetUid)
+        )
+
+        try await batch.commit()
+    }
+
+    func unfollowUser(currentUid: String, targetUid: String) async throws {
+        let batch = db.batch()
+
+        // Remove from current user's following
+        let followingRef = usersCollection.document(currentUid)
+            .collection("following").document(targetUid)
+        batch.deleteDocument(followingRef)
+
+        // Remove from target user's followers
+        let followerRef = usersCollection.document(targetUid)
+            .collection("followers").document(currentUid)
+        batch.deleteDocument(followerRef)
+
+        // Decrement counts atomically
+        batch.updateData(
+            ["followingCount": FieldValue.increment(Int64(-1))],
+            forDocument: usersCollection.document(currentUid)
+        )
+        batch.updateData(
+            ["followerCount": FieldValue.increment(Int64(-1))],
+            forDocument: usersCollection.document(targetUid)
+        )
+
+        try await batch.commit()
+    }
+
+    func checkFollowing(currentUid: String, targetUid: String) async throws -> Bool {
+        let doc = try await usersCollection.document(currentUid)
+            .collection("following").document(targetUid).getDocument()
+        return doc.exists
+    }
+
+    func fetchFollowingUids(uid: String) async throws -> [String] {
+        let snapshot = try await usersCollection.document(uid)
+            .collection("following")
+            .order(by: "followedAt", descending: true)
+            .getDocuments()
+        return snapshot.documents.map { $0.documentID }
+    }
+
+    func fetchFollowerUids(uid: String) async throws -> [String] {
+        let snapshot = try await usersCollection.document(uid)
+            .collection("followers")
+            .order(by: "followedAt", descending: true)
+            .getDocuments()
+        return snapshot.documents.map { $0.documentID }
+    }
+
+    func fetchUserProfiles(uids: [String]) async throws -> [UserProfile] {
+        guard !uids.isEmpty else { return [] }
+
+        // Firestore 'in' queries limited to 30 items per query
+        var profiles: [String: UserProfile] = [:]
+        for chunk in uids.chunked(into: 30) {
+            let snapshot = try await usersCollection
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            for doc in snapshot.documents {
+                if let profile = parseProfile(from: doc.data(), uid: doc.documentID) {
+                    profiles[doc.documentID] = profile
+                }
+            }
+        }
+
+        // Return in original UID order
+        return uids.compactMap { profiles[$0] }
+    }
+
+    // MARK: - User Search
+
+    func searchUsers(query: String, limit: Int) async throws -> [UserProfile] {
+        let prefix = query.lowercased()
+        let end = prefix + "\u{f8ff}"
+
+        // Run handle and name queries in parallel, merge results
+        async let handleSnapshot = usersCollection
+            .whereField("handle", isGreaterThanOrEqualTo: prefix)
+            .whereField("handle", isLessThan: end)
+            .limit(to: limit)
+            .getDocuments()
+
+        async let nameSnapshot = usersCollection
+            .whereField("displayNameLower", isGreaterThanOrEqualTo: prefix)
+            .whereField("displayNameLower", isLessThan: end)
+            .limit(to: limit)
+            .getDocuments()
+
+        let (handleResults, nameResults) = try await (handleSnapshot, nameSnapshot)
+
+        // Merge and deduplicate, preserving handle matches first
+        var seen = Set<String>()
+        var profiles: [UserProfile] = []
+
+        for doc in handleResults.documents {
+            if let profile = parseProfile(from: doc.data(), uid: doc.documentID) {
+                seen.insert(doc.documentID)
+                profiles.append(profile)
+            }
+        }
+        for doc in nameResults.documents {
+            if !seen.contains(doc.documentID),
+               let profile = parseProfile(from: doc.data(), uid: doc.documentID) {
+                profiles.append(profile)
+            }
+        }
+
+        return Array(profiles.prefix(limit))
     }
 
     // MARK: - Parsing

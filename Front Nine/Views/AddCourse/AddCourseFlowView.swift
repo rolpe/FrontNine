@@ -15,9 +15,17 @@ struct AddCourseFlowView: View {
     @Environment(RankingSyncService.self) private var syncService
     @Query(sort: \Course.rankPosition) private var courses: [Course]
 
-    @State private var flowStep: FlowStep = .search
+    @State private var flowStep: FlowStep
     /// Tracks the existing course being re-ranked (nil for new adds)
     @State private var rerankingCourse: Course?
+
+    init(preselectedResult: CourseSearchResult? = nil) {
+        if let result = preselectedResult {
+            self._flowStep = State(initialValue: .detail(result))
+        } else {
+            self._flowStep = State(initialValue: .search)
+        }
+    }
 
     private enum FlowStep {
         case search

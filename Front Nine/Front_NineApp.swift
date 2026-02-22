@@ -13,6 +13,7 @@ import FirebaseCore
 struct Front_NineApp: App {
     @State private var authService = AuthService()
     @State private var syncService = RankingSyncService()
+    @State private var followService = FollowService()
 
     init() {
         FirebaseApp.configure()
@@ -52,6 +53,7 @@ struct Front_NineApp: App {
             RankingsView()
                 .environment(authService)
                 .environment(syncService)
+                .environment(followService)
                 .task { authService.startListening() }
         }
         .modelContainer(sharedModelContainer)
