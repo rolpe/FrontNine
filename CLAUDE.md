@@ -20,7 +20,7 @@ This is a premium consumer app, not a developer tool. Every feature should feel 
 - Apple MapKit for course search (`MKLocalSearch` with golf POI filter)
 - CoreLocation for nearby course discovery
 - GolfCourseAPI.com for course enrichment (par, slope, rating, yardage, tee boxes)
-- Firebase (FirebaseAuth + FirebaseFirestore via SPM) for authentication and user profiles
+- Firebase (FirebaseAuth + FirebaseFirestore via SPM) for authentication, user profiles, social graph, and rankings sync
 
 ## Architecture & Directory Structure
 ```
@@ -31,7 +31,8 @@ Front Nine/
     CourseEnrichmentData.swift — Lightweight value type for threading enrichment through add-course flow
     GolfCourseAPIModels.swift  — Codable structs for GolfCourseAPI.com responses
     USState.swift             — 50 states + DC enum with bidirectional name↔abbreviation lookup
-    UserProfile.swift         — Codable struct for Firestore user profile (uid, displayName, handle, dates)
+    UserProfile.swift         — Codable/Hashable struct for Firestore user profile (uid, displayName, handle, dates, social counts, privacy)
+    FirestoreRanking.swift    — Codable/Hashable value type mapping Course fields to Firestore document
   Theme/
     FNTheme.swift             — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
   Services/
@@ -42,13 +43,17 @@ Front Nine/
     LocationManager.swift     — @Observable CLLocationManager wrapper (one-shot location, permission handling)
     CourseDeleter.swift       — Static helpers for rank gap closure + deletion
     AuthService.swift         — @MainActor @Observable auth state manager (Sign in with Apple, profile CRUD)
-    FirestoreService.swift    — @MainActor Firestore wrapper + FirestoreServiceProtocol for testability
+    FirestoreService.swift    — @MainActor Firestore wrapper + FirestoreServiceProtocol for testability (users, rankings, follows, search)
+    RankingSyncService.swift  — @MainActor @Observable service syncing rankings to Firestore on all mutation points
+    FollowService.swift       — @MainActor @Observable follow/unfollow with local isFollowingCache, batch Firestore writes
     Secrets.swift             — API key (gitignored)
   ViewModels/
     AddCourseViewModel.swift    — Manual add form state, validation, country auto-fill from locale
     ComparisonViewModel.swift   — Binary search state machine for head-to-head ranking
     CourseSearchViewModel.swift — Search query/results/loading/error state, recent searches (UserDefaults), already-added detection
-    ProfileSetupViewModel.swift — Handle validation (format + availability), sanitization, save logic
+    ProfileSetupViewModel.swift    — Handle validation (format + availability), sanitization, save logic
+    OtherUserProfileViewModel.swift — Rankings loading, follow state, privacy checks for other users
+    UserSearchViewModel.swift      — User search by handle/display name with debounce
   Views/
     Rankings/
       RankingsView.swift          — Main screen, List with tier sections, nav to detail, add sheet, debug seed tools
@@ -73,6 +78,7 @@ Front Nine/
       FlagIcon.swift           — Canvas-drawn flag with filled/outlined/dashed variants per rating
       MapPeekView.swift        — Non-interactive map with gradient fade and Directions button
       TypePill.swift           — InfoPill base + TypePill (private only) + HolesPill (non-18 only)
+      InitialsAvatarView.swift — Initials-based avatar circle for user profiles
     Comparison/
       ComparisonView.swift     — Head-to-head: two-pin map, tier-colored dots, cards, OR divider, "I can't decide"
       ComparisonMapView.swift  — Two-pin map with auto-fit region, recreated per comparison step via .id()
@@ -83,8 +89,14 @@ Front Nine/
       ProfileFlowView.swift    — Sheet container routing by AuthState (signedOut→signIn, needsSetup→setup, signedIn→profile)
       SignInView.swift          — Sign in with Apple button, nonce/SHA256, Firebase credential, error handling
       ProfileSetupView.swift   — Display name + @handle picker with real-time availability check
-      ProfileView.swift        — Signed-in profile card, sign out, delete account with confirmation
-  Front_NineApp.swift          — @main entry, SwiftData ModelContainer, Firebase init, AuthService environment
+      ProfileView.swift        — Signed-in profile: stats row, privacy toggle, sign out, delete account
+    Social/
+      UserSearchView.swift         — User search UI with handle/name search
+      OtherUserProfileView.swift   — Other user's profile with rankings display, follow button, privacy lock
+      OtherUserCourseRow.swift     — Read-only course row with chevron for social rankings
+      SocialCourseDetailView.swift — Read-only course detail from FirestoreRanking, "Add to My Rankings" CTA
+      FollowListView.swift         — Followers/following list with navigation to profiles
+  Front_NineApp.swift          — @main entry, SwiftData ModelContainer, Firebase init, AuthService/RankingSyncService/FollowService environment
   Supporting Files/
     FrontNine_MVP_PRD.md       — Original product requirements document
 
@@ -99,6 +111,7 @@ Front NineTests/
   Front_NineTests.swift              — Course model init, enums, SwiftData persistence, enrichment fields
   UserProfileTests.swift             — UserProfile init, Codable round-trip, firestoreData output, Equatable
   ProfileSetupViewModelTests.swift   — Handle validation/sanitization, isValid, async availability, debounce
+  FollowServiceTests.swift           — Follow/unfollow logic, cache behavior
 ```
 
 ## Key Design Decisions & Conventions
@@ -113,6 +126,11 @@ Front NineTests/
 - **Progressive auth**: App works fully without signing in. Profile icon in toolbar opens auth sheet. AuthService injected via `.environment()`
 - **AuthService**: `@MainActor @Observable` with `AuthState` enum (unknown/signedOut/signedIn/needsSetup). Firebase auth state listener drives transitions. Injectable `FirestoreServiceProtocol` for testability
 - **Profile flow**: ProfileFlowView routes by `authState` — same state-machine sheet pattern as AddCourseFlowView
+- **Firestore sync**: RankingSyncService injected via `.environment()`, syncs on all 8 mutation points (add, delete, re-rank, edit, drag reorder, rating change, re-rank from detail/search)
+- **Social navigation**: Value-based `NavigationLink(value:)` with `.navigationDestination(for:)` — `FirestoreRanking` and `UserProfile` both `Hashable` for this
+- **FollowService**: `@MainActor @Observable` with local `isFollowingCache` dictionary for instant UI, batch Firestore writes (following + followers subcollections + denormalized counts)
+- **Social course detail**: Read-only view from `FirestoreRanking`, matches local courses via `courseKey()` for "on your list" indicator, builds `CourseSearchResult` for "Add to My Rankings" sheet
+- **ProfileDestination enum**: Used for value-based navigation to followers/following lists from profile stats
 
 ### Styling Rules
 - All colors via `FNColors` (cream, text, textLight, sage, tan, coral, warmGray) — never hardcode
@@ -157,20 +175,24 @@ Front NineTests/
 - **Nearby courses**: LocationManager with one-shot location, auto-load when authorized, permission prompt/denied/settings UI, max 5 results in search empty state
 - **Keyboard dismissal**: `.scrollDismissesKeyboard(.immediately)` + `.onTapGesture` on search ScrollView
 - **Tier-colored progress dots**: Comparison screen progress dots tinted to rating tier color (coral/sage/warmGray)
-- **Debug tools** (`#if DEBUG`): Ladybug toolbar button → seed 8 sample courses / delete all courses
+- **Debug tools** (`#if DEBUG`): Ladybug toolbar button → seed 8 sample courses / delete all courses, seed/delete test members
 - **Firebase Auth (Phase 1)**: Sign in with Apple via Firebase, Firestore user profiles with unique @handles, progressive auth (no sign-in gate), profile setup flow with real-time handle availability, sign out + delete account
-- **Profile UI**: ProfileFlowView sheet from toolbar icon (sage when signed in, warmGray when not), SignInView with Apple branding, ProfileSetupView with handle validation, ProfileView with member-since date
-- **145 unit tests passing** across 10 test files
+- **Profile UI**: ProfileFlowView sheet from toolbar icon (sage when signed in, warmGray when not), SignInView with Apple branding, ProfileSetupView with handle validation, ProfileView with stats row (ranked/followers/following), privacy toggle, member-since date
+- **Firestore sync (Phase 2)**: RankingSyncService syncs rankings to Firestore on all 8 mutation points — add, delete, re-rank, edit, drag reorder, rating change, re-rank from detail, re-rank from search. Denormalized ranking count on user profile. Auto-sync on every mutation (no manual sync button)
+- **Social foundation (Phase 2)**: Follow/unfollow with instant UI (local cache + batch Firestore writes), user search by @handle or display name, view other users' profiles and rankings (tier sections, read-only course rows with chevrons), tappable course detail from social rankings, "Add to My Rankings" CTA (pre-seeds AddCourseFlowView), "#N on your list" indicator with tier-colored dot, "Ranked by [name]" attribution, privacy toggle (private = followers-only rankings), followers/following lists with navigation
+- **Re-rank from detail**: Re-rank button on CourseDetailView for existing courses within a tier
+- **159 unit tests passing** across 11 test files
 
 ### Not Yet Implemented
-- **Data sync**: Local SwiftData ↔ Firestore sync (rankings data)
-- **Social features**: Following, shared rankings, activity feeds
+- **Activity feed**: See when people you follow rank/re-rank courses
+- **Course pages**: Aggregate view of a course across all users
 - **Additional auth providers**: Email/password, Google sign-in
 - **Comparison fallback**: No visual fallback when manually-added courses lack coordinates (map area is simply blank)
+- **Push notifications**: New follower, shared ranking activity
 
 ## Next Steps
 
-Data sync between local SwiftData and Firestore — syncing rankings to the cloud so they persist across devices. Then social features: following other users, viewing shared rankings, activity feeds.
+Activity feed, course discovery features, or App Store preparation. Core ranking + auth + sync + social foundation are all complete.
 
 ## Gotchas & Context a New Session Would Miss
 
@@ -204,7 +226,8 @@ Data sync between local SwiftData and Firestore — syncing rankings to the clou
 - API key stored in `Secrets.swift` (gitignored), accessed via `Secrets.golfCourseAPIKey`
 
 ### Flow Architecture
-- AddCourseFlowView's 5-state enum: `.search` → `.detail(CourseSearchResult)` → `.quickRate(CourseSearchResult)` → `.comparison(ComparisonViewModel)`. Also `.manualAdd` as alternate path from search.
+- AddCourseFlowView's 5-state enum: `.search` → `.detail(CourseSearchResult)` → `.quickRate(CourseSearchResult, CourseEnrichmentData?)` → `.comparison(ComparisonViewModel)`. Also `.manualAdd` as alternate path from search.
+- **Preselected result**: `init(preselectedResult:)` skips to `.detail` step — used by "Add to My Rankings" from SocialCourseDetailView
 - **Re-rank flow**: `@State rerankingCourse: Course?` tracks whether we're re-ranking an existing course. When set, QuickRateView pre-fills fields, button says "Re-rank", and completion updates the existing course (closeRankGap → compare against others → set new rank) instead of inserting a new one.
 - The manual add path (AddCourseView) has its **own NavigationStack** — don't nest another one
 - `interactiveDismissDisabled` only during `.comparison` step (prevent data loss mid-ranking)
@@ -215,6 +238,17 @@ Data sync between local SwiftData and Firestore — syncing rankings to the clou
 - `courseKey(name:city:state:)` is the shared normalization function — used in both ViewModel and AddCourseFlowView.findExistingCourse
 - MapKit throws `MKError.placemarkNotFound` when no results found — caught and treated as empty results, not an error
 - Recent searches saved after every search attempt (success or failure), capped at 4, case-insensitive dedup
+
+### Firestore Sync & Social
+- RankingSyncService and FollowService are injected via `.environment()` in `Front_NineApp.swift` alongside AuthService
+- **Denormalized counts**: When pushing follower/following/ranking counts to Firestore, also update local `authService.userProfile` — UI reads from local state, not Firestore
+- **Swift exclusivity**: NEVER read and write `authService.userProfile?` in one expression (e.g. `x?.count = max(0, (x?.count ?? 0) - 1)` crashes). Always read into a local first
+- **Firestore rules don't cascade to subcollections** — each subcollection (`rankings`, `following`, `followers`) needs its own explicit `match` rules
+- **`test_` UID prefix convention** for debug test data — never collides with Apple Sign In UIDs
+- **NavigationLink in List vs ScrollView**: `List` auto-shows chevrons for NavigationLink; `ScrollView` + `VStack` needs explicit chevron + `.contentShape(Rectangle())` for full-row tapping
+- **`FirestoreRanking` and `UserProfile` need `Hashable`** for value-based `NavigationLink(value:)`
+- **AddCourseFlowView preselectedResult**: Optional `CourseSearchResult?` init parameter — when provided, starts at `.detail` step (skips search). Used by "Add to My Rankings" from social course detail. Default `nil` preserves existing behavior
+- **Social course matching**: Uses `CourseSearchViewModel.courseKey(name:city:state:)` to match `FirestoreRanking` to local `Course` — same normalization as search duplicate detection
 
 ### Firebase & Auth
 - `Firestore.firestore()` must be deferred (computed property) — `FirestoreService` is created before `FirebaseApp.configure()` runs
