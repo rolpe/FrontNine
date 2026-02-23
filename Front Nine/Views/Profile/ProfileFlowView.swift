@@ -15,18 +15,29 @@ struct ProfileFlowView: View {
     @Environment(AuthService.self) private var authService
     @Environment(\.dismiss) private var dismiss
 
+    var showDismiss: Bool = true
+    @Binding var navigationPath: NavigationPath
+
+    init(showDismiss: Bool = true, navigationPath: Binding<NavigationPath>? = nil) {
+        self.showDismiss = showDismiss
+        self._navigationPath = navigationPath ?? .constant(NavigationPath())
+    }
+
     var body: some View {
         Group {
             switch authService.authState {
             case .unknown, .signedOut:
-                SignInView(onDismiss: { dismiss() })
+                SignInView(
+                    onDismiss: { if showDismiss { dismiss() } },
+                    showSkipButton: showDismiss
+                )
 
             case .needsSetup:
                 ProfileSetupView()
 
             case .signedIn:
-                NavigationStack {
-                    ProfileView()
+                NavigationStack(path: $navigationPath) {
+                    ProfileView(showDismissButton: showDismiss)
                         .navigationDestination(for: UserProfile.self) { profile in
                             OtherUserProfileView(profile: profile)
                         }

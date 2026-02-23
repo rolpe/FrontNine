@@ -10,6 +10,8 @@ struct ProfileView: View {
     @Environment(FollowService.self) private var followService
     @Environment(\.dismiss) private var dismiss
 
+    var showDismissButton: Bool = true
+
     @State private var showingDeleteConfirmation = false
     @State private var errorMessage: String?
     @State private var isTogglingPrivacy = false
@@ -126,12 +128,14 @@ struct ProfileView: View {
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 28))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(FNColors.warmGray)
+            if showDismissButton {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(FNColors.warmGray)
+                    }
                 }
             }
         }
@@ -259,7 +263,7 @@ struct ProfileView: View {
         do {
             try authService.signOut()
             followService.reset()
-            dismiss()
+            if showDismissButton { dismiss() }
         } catch {
             errorMessage = "Could not sign out. Please try again."
         }
@@ -270,7 +274,7 @@ struct ProfileView: View {
             do {
                 try await authService.deleteAccount()
                 followService.reset()
-                dismiss()
+                if showDismissButton { dismiss() }
             } catch {
                 errorMessage = "Could not delete account. Please sign out and sign back in, then try again."
             }

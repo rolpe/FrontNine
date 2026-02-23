@@ -32,6 +32,11 @@ protocol FirestoreServiceProtocol {
 
     // User Search
     func searchUsers(query: String, limit: Int) async throws -> [UserProfile]
+
+    // Activity
+    func saveActivity(_ data: [String: Any], uid: String) async throws
+    func fetchActivity(uid: String, limit: Int) async throws -> [ActivityItem]
+    func deleteAllActivity(uid: String) async throws
 }
 
 @MainActor
@@ -280,6 +285,71 @@ final class FirestoreService: FirestoreServiceProtocol {
         }
 
         return Array(profiles.prefix(limit))
+    }
+
+    // MARK: - Activity
+
+    private func activityCollection(uid: String) -> CollectionReference {
+        usersCollection.document(uid).collection("activity")
+    }
+
+    func saveActivity(_ data: [String: Any], uid: String) async throws {
+        try await activityCollection(uid: uid).addDocument(data: data)
+    }
+
+    func fetchActivity(uid: String, limit: Int) async throws -> [ActivityItem] {
+        let snapshot = try await activityCollection(uid: uid)
+            .order(by: "timestamp", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            parseActivity(from: doc.data(), id: doc.documentID)
+        }
+    }
+
+    private func parseActivity(from data: [String: Any], id: String) -> ActivityItem? {
+        guard let typeRaw = data["type"] as? String,
+              let type = ActivityType(rawValue: typeRaw),
+              let actorUid = data["actorUid"] as? String,
+              let actorDisplayName = data["actorDisplayName"] as? String,
+              let actorHandle = data["actorHandle"] as? String,
+              let courseName = data["courseName"] as? String,
+              let courseCity = data["courseCity"] as? String,
+              let courseState = data["courseState"] as? String,
+              let courseRating = data["courseRating"] as? String,
+              let newRankPosition = data["newRankPosition"] as? Int else { return nil }
+
+        let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
+
+        return ActivityItem(
+            id: id,
+            type: type,
+            actorUid: actorUid,
+            actorDisplayName: actorDisplayName,
+            actorHandle: actorHandle,
+            courseName: courseName,
+            courseCity: courseCity,
+            courseState: courseState,
+            courseCountry: data["courseCountry"] as? String,
+            courseRating: courseRating,
+            newRankPosition: newRankPosition,
+            oldRankPosition: data["oldRankPosition"] as? Int,
+            courseLatitude: data["courseLatitude"] as? Double,
+            courseLongitude: data["courseLongitude"] as? Double,
+            courseType: data["courseType"] as? String,
+            courseHoleCount: data["courseHoleCount"] as? Int,
+            timestamp: timestamp
+        )
+    }
+
+    func deleteAllActivity(uid: String) async throws {
+        let snapshot = try await activityCollection(uid: uid).getDocuments()
+        let batch = db.batch()
+        for doc in snapshot.documents {
+            batch.deleteDocument(doc.reference)
+        }
+        try await batch.commit()
     }
 
     // MARK: - Parsing

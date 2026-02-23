@@ -81,6 +81,45 @@ final class RankingSyncService {
         }
     }
 
+    // MARK: - Activity
+
+    /// Write an activity event to Firestore. Fire-and-forget.
+    func writeActivity(
+        type: ActivityType,
+        course: Course,
+        newRank: Int,
+        oldRank: Int?,
+        actorProfile: UserProfile,
+        uid: String
+    ) {
+        let item = ActivityItem(
+            id: UUID().uuidString,
+            type: type,
+            actorUid: actorProfile.uid,
+            actorDisplayName: actorProfile.displayName,
+            actorHandle: actorProfile.handle,
+            courseName: course.name,
+            courseCity: course.city,
+            courseState: course.state,
+            courseCountry: course.country,
+            courseRating: course.rating.rawValue,
+            newRankPosition: newRank,
+            oldRankPosition: oldRank,
+            courseLatitude: course.latitude,
+            courseLongitude: course.longitude,
+            courseType: course.courseType.rawValue,
+            courseHoleCount: course.holeCount,
+            timestamp: Date()
+        )
+        Task {
+            do {
+                try await firestoreService.saveActivity(item.firestoreData(), uid: uid)
+            } catch {
+                logger.error("Failed to write activity: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Full Sync
 
     /// Upload all local rankings to Firestore. Used for initial sync when a user first signs in

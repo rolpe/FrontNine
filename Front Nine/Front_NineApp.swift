@@ -50,7 +50,7 @@ struct Front_NineApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RankingsView()
+            MainTabView()
                 .environment(authService)
                 .environment(syncService)
                 .environment(followService)

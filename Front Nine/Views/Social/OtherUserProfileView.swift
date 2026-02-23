@@ -29,6 +29,7 @@ struct OtherUserProfileView: View {
             .task {
                 // Small delay to let viewModel initialize via onAppear
                 try? await Task.sleep(for: .milliseconds(50))
+                await viewModel?.refreshProfile()
                 await viewModel?.loadRankings()
             }
     }

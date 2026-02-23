@@ -58,8 +58,19 @@ final class OtherUserProfileViewModel {
         self.currentUid = currentUid
     }
 
+    /// Fetch the latest profile from Firestore to ensure counts are current.
+    func refreshProfile() async {
+        do {
+            if let fresh = try await firestoreService.fetchUserProfile(uid: profile.uid) {
+                profile = fresh
+            }
+        } catch {
+            logger.error("Failed to refresh profile for \(self.profile.uid): \(error.localizedDescription)")
+        }
+    }
+
     func loadRankings() async {
-        guard canViewRankings else { return }
+        guard canViewRankings, rankings.isEmpty else { return }
         isLoadingRankings = true
         do {
             rankings = try await firestoreService.fetchRankings(uid: profile.uid)

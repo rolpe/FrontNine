@@ -18,6 +18,8 @@ struct AddCourseFlowView: View {
     @State private var flowStep: FlowStep
     /// Tracks the existing course being re-ranked (nil for new adds)
     @State private var rerankingCourse: Course?
+    /// Captures rank position before gap closure for reRanked activity
+    @State private var oldRankBeforeRerank: Int?
 
     init(preselectedResult: CourseSearchResult? = nil) {
         if let result = preselectedResult {
@@ -165,12 +167,27 @@ struct AddCourseFlowView: View {
             let newCount = allCoursesAfter.count
             syncService.updateRankingCount(newCount, uid: uid)
             authService.userProfile?.rankingCount = newCount
+
+            // Write activity
+            if let profile = authService.userProfile {
+                syncService.writeActivity(
+                    type: .ranked,
+                    course: vm.newCourse,
+                    newRank: vm.finalRank,
+                    oldRank: nil,
+                    actorProfile: profile,
+                    uid: uid
+                )
+            }
         }
     }
 
     // MARK: - Re-rank Flow
 
     private func handleCourseReranked(_ course: Course) {
+        // Capture old rank before gap closure
+        oldRankBeforeRerank = course.rankPosition
+
         // Close the rank gap at the old position
         CourseDeleter.closeRankGap(for: course, in: courses)
 
@@ -220,6 +237,18 @@ struct AddCourseFlowView: View {
             var changedIds = Set(shifts.keys)
             changedIds.insert(vm.newCourse.id)
             syncService.syncAfterRankChange(allCourses: Array(courses), changedIds: changedIds, uid: uid)
+
+            // Write activity
+            if let profile = authService.userProfile {
+                syncService.writeActivity(
+                    type: .reRanked,
+                    course: vm.newCourse,
+                    newRank: vm.finalRank,
+                    oldRank: oldRankBeforeRerank,
+                    actorProfile: profile,
+                    uid: uid
+                )
+            }
         }
     }
 }

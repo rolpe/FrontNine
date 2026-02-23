@@ -361,5 +361,26 @@ final class MockFirestoreService: FirestoreServiceProtocol {
         return Array(searchResultsToReturn.prefix(limit))
     }
 
+    // Activity tracking
+    var savedActivities: [(data: [String: Any], uid: String)] = []
+    var activityToReturn: [ActivityItem] = []
+
+    func saveActivity(_ data: [String: Any], uid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        savedActivities.append((data: data, uid: uid))
+    }
+
+    func fetchActivity(uid: String, limit: Int) async throws -> [ActivityItem] {
+        if shouldThrow { throw MockError.testError }
+        return Array(activityToReturn.prefix(limit))
+    }
+
+    var deletedActivityUids: [String] = []
+
+    func deleteAllActivity(uid: String) async throws {
+        if shouldThrow { throw MockError.testError }
+        deletedActivityUids.append(uid)
+    }
+
     enum MockError: Error { case testError }
 }

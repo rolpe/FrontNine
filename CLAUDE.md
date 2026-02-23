@@ -33,6 +33,7 @@ Front Nine/
     USState.swift             — 50 states + DC enum with bidirectional name↔abbreviation lookup
     UserProfile.swift         — Codable/Hashable struct for Firestore user profile (uid, displayName, handle, dates, social counts, privacy)
     FirestoreRanking.swift    — Codable/Hashable value type mapping Course fields to Firestore document
+    ActivityItem.swift        — Codable/Hashable/Identifiable value type for activity feed events (ranked/reRanked)
   Theme/
     FNTheme.swift             — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
   Services/
@@ -43,9 +44,10 @@ Front Nine/
     LocationManager.swift     — @Observable CLLocationManager wrapper (one-shot location, permission handling)
     CourseDeleter.swift       — Static helpers for rank gap closure + deletion
     AuthService.swift         — @MainActor @Observable auth state manager (Sign in with Apple, profile CRUD)
-    FirestoreService.swift    — @MainActor Firestore wrapper + FirestoreServiceProtocol for testability (users, rankings, follows, search)
-    RankingSyncService.swift  — @MainActor @Observable service syncing rankings to Firestore on all mutation points
+    FirestoreService.swift    — @MainActor Firestore wrapper + FirestoreServiceProtocol for testability (users, rankings, follows, search, activity)
+    RankingSyncService.swift  — @MainActor @Observable service syncing rankings to Firestore on all mutation points + activity writes
     FollowService.swift       — @MainActor @Observable follow/unfollow with local isFollowingCache, batch Firestore writes
+    ActivityFeedService.swift — @MainActor fan-out-on-read service, fetches activity from followed users in parallel
     Secrets.swift             — API key (gitignored)
   ViewModels/
     AddCourseViewModel.swift    — Manual add form state, validation, country auto-fill from locale
@@ -54,6 +56,7 @@ Front Nine/
     ProfileSetupViewModel.swift    — Handle validation (format + availability), sanitization, save logic
     OtherUserProfileViewModel.swift — Rankings loading, follow state, privacy checks for other users
     UserSearchViewModel.swift      — User search by handle/display name with debounce
+    ActivityFeedViewModel.swift    — Feed state, time-grouped items (today/week/earlier), staleness refresh, relative time
   Views/
     Rankings/
       RankingsView.swift          — Main screen, List with tier sections, nav to detail, add sheet, debug seed tools
@@ -72,6 +75,9 @@ Front Nine/
       AddCourseView.swift          — Full manual add form (NavigationStack, CourseFormFields)
       PillButtonView.swift         — Reusable capsule toggle button (interactive selection)
       RatingPickerView.swift       — 3-option rating selector with color bars and flag icons
+    Activity/
+      ActivityFeedView.swift    — Main feed: List with time sections, dual navigation targets, empty states, pull-to-refresh
+      ActivityCardView.swift    — Card: user row (avatar + action text) + nested course card (tier bar, rank capsule, re-rank indicator)
     Components/
       CourseFormFields.swift   — Reusable form: name, city, state/region, country, type, holes, rating, notes
       FNTextField.swift        — Styled text input with label, char limit, tan border
@@ -79,11 +85,13 @@ Front Nine/
       MapPeekView.swift        — Non-interactive map with gradient fade and Directions button
       TypePill.swift           — InfoPill base + TypePill (private only) + HolesPill (non-18 only)
       InitialsAvatarView.swift — Initials-based avatar circle for user profiles
+      AppleSignInButton.swift  — Reusable Sign in with Apple (nonce, SHA256, credential exchange, error handling)
     Comparison/
       ComparisonView.swift     — Head-to-head: two-pin map, tier-colored dots, cards, OR divider, "I can't decide"
       ComparisonMapView.swift  — Two-pin map with auto-fit region, recreated per comparison step via .id()
       ComparisonCardView.swift — Selectable course card with name + location
       ProgressDotsView.swift   — Animated dot progress indicator with configurable activeColor
+    MainTabView.swift          — Root TabView with 3 tabs (Rankings/Activity/Profile), navigation path per tab, tab-switch reset
     CourseDetailView.swift     — Detail/edit/comparison reranking: map peek, stats card, read-only cards, edit mode
     Profile/
       ProfileFlowView.swift    — Sheet container routing by AuthState (signedOut→signIn, needsSetup→setup, signedIn→profile)
@@ -112,6 +120,8 @@ Front NineTests/
   UserProfileTests.swift             — UserProfile init, Codable round-trip, firestoreData output, Equatable
   ProfileSetupViewModelTests.swift   — Handle validation/sanitization, isValid, async availability, debounce
   FollowServiceTests.swift           — Follow/unfollow logic, cache behavior
+  ActivityItemTests.swift            — Model init, Codable round-trip, firestoreData, toFirestoreRanking, Equatable/Hashable
+  ActivityFeedViewModelTests.swift   — Initial state, loadFeed, time grouping, relativeTime, refresh, staleness
 ```
 
 ## Key Design Decisions & Conventions
@@ -131,6 +141,9 @@ Front NineTests/
 - **FollowService**: `@MainActor @Observable` with local `isFollowingCache` dictionary for instant UI, batch Firestore writes (following + followers subcollections + denormalized counts)
 - **Social course detail**: Read-only view from `FirestoreRanking`, matches local courses via `courseKey()` for "on your list" indicator, builds `CourseSearchResult` for "Add to My Rankings" sheet
 - **ProfileDestination enum**: Used for value-based navigation to followers/following lists from profile stats
+- **TabView architecture**: 3-tab layout (Rankings/Activity/Profile) with `@State` NavigationPath per tab. Tab switch resets previous tab's navigation via `.onChange(of: selectedTab)`
+- **Activity feed**: Fan-out-on-read from Firestore activity subcollections. `ActivityFeedService` queries followed users in parallel via `withTaskGroup`, error-resilient per user. Time-grouped display (Today/This Week/Earlier). Smart refresh on tab re-appearance: staleness threshold (60s) + following count change detection
+- **AppleSignInButton**: Extracted reusable component with nonce generation, SHA256, credential exchange. Used by both SignInView and ActivityFeedView empty state
 
 ### Styling Rules
 - All colors via `FNColors` (cream, text, textLight, sage, tan, coral, warmGray) — never hardcode
@@ -181,10 +194,10 @@ Front NineTests/
 - **Firestore sync (Phase 2)**: RankingSyncService syncs rankings to Firestore on all 8 mutation points — add, delete, re-rank, edit, drag reorder, rating change, re-rank from detail, re-rank from search. Denormalized ranking count on user profile. Auto-sync on every mutation (no manual sync button)
 - **Social foundation (Phase 2)**: Follow/unfollow with instant UI (local cache + batch Firestore writes), user search by @handle or display name, view other users' profiles and rankings (tier sections, read-only course rows with chevrons), tappable course detail from social rankings, "Add to My Rankings" CTA (pre-seeds AddCourseFlowView), "#N on your list" indicator with tier-colored dot, "Ranked by [name]" attribution, privacy toggle (private = followers-only rankings), followers/following lists with navigation
 - **Re-rank from detail**: Re-rank button on CourseDetailView for existing courses within a tier
-- **159 unit tests passing** across 11 test files
+- **Activity feed (Phase 3)**: 3-tab layout (Rankings/Activity/Profile), activity events written on rank/re-rank, fan-out-on-read feed from followed users, time-grouped display (Today/This Week/Earlier), dual navigation targets (avatar → profile, card → course detail), pull-to-refresh, smart staleness refresh (60s + follow count change), three empty states (not signed in with Apple sign-in button, not following with Find Members CTA, no activity), reusable AppleSignInButton component
+- **218 unit tests passing** across 13 test files
 
 ### Not Yet Implemented
-- **Activity feed**: See when people you follow rank/re-rank courses
 - **Course pages**: Aggregate view of a course across all users
 - **Additional auth providers**: Email/password, Google sign-in
 - **Comparison fallback**: No visual fallback when manually-added courses lack coordinates (map area is simply blank)
@@ -192,7 +205,7 @@ Front NineTests/
 
 ## Next Steps
 
-Activity feed, course discovery features, or App Store preparation. Core ranking + auth + sync + social foundation are all complete.
+Course discovery features or App Store preparation. Core ranking + auth + sync + social + activity feed are all complete.
 
 ## Gotchas & Context a New Session Would Miss
 

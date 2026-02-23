@@ -12,8 +12,8 @@ struct RankingsView: View {
     @Environment(RankingSyncService.self) private var syncService
     @Environment(FollowService.self) private var followService
     @Query(sort: \Course.rankPosition) private var courses: [Course]
+    @Binding var navigationPath: NavigationPath
     @State private var showingAddCourse = false
-    @State private var showingProfile = false
     #if DEBUG
     @State private var showingDebugMenu = false
     #endif
@@ -31,7 +31,7 @@ struct RankingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if courses.isEmpty {
                     RankingsEmptyStateView(onAddCourse: { showingAddCourse = true })
@@ -56,12 +56,6 @@ struct RankingsView: View {
             .navigationTitle("My Rankings")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { showingProfile = true }) {
-                        Image(systemName: "person.circle")
-                            .foregroundStyle(authService.isSignedIn ? FNColors.sage : FNColors.warmGray)
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showingAddCourse = true }) {
                         Image(systemName: "plus")
@@ -79,7 +73,7 @@ struct RankingsView: View {
             }
             #if DEBUG
             .confirmationDialog("Debug Tools", isPresented: $showingDebugMenu, titleVisibility: .visible) {
-                Button("Seed 8 Sample Courses") { seedSampleCourses() }
+                Button("Seed 8 Sample Courses") { Task { await seedSampleCourses() } }
                 Button("Seed Test Members") { Task { await seedTestMembers() } }
                 Button("Delete All Courses", role: .destructive) { deleteAllCourses() }
                 Button("Delete Test Members", role: .destructive) { Task { await deleteTestMembers() } }
@@ -93,9 +87,6 @@ struct RankingsView: View {
             }
             .sheet(isPresented: $showingAddCourse) {
                 AddCourseFlowView()
-            }
-            .sheet(isPresented: $showingProfile) {
-                ProfileFlowView()
             }
             .onChange(of: authService.authState) { _, newValue in
                 guard newValue == .signedIn,
@@ -197,14 +188,29 @@ struct RankingsView: View {
             }
             syncService.updateRankingCount(0, uid: uid)
             authService.userProfile?.rankingCount = 0
+            // Clean up activity
+            Task {
+                try? await FirestoreService().deleteAllActivity(uid: uid)
+            }
         }
         for course in courses {
             modelContext.delete(course)
         }
     }
 
-    private func seedSampleCourses() {
-        deleteAllCourses()
+    private func seedSampleCourses() async {
+        // Delete courses and await activity cleanup (avoids race condition)
+        if let uid = authService.userProfile?.uid {
+            for course in courses {
+                syncService.deleteCourseFromCloud(courseId: course.id.uuidString, uid: uid)
+            }
+            syncService.updateRankingCount(0, uid: uid)
+            authService.userProfile?.rankingCount = 0
+            try? await FirestoreService().deleteAllActivity(uid: uid)
+        }
+        for course in courses {
+            modelContext.delete(course)
+        }
 
         let samples: [Course] = [
             Course(
@@ -267,10 +273,20 @@ struct RankingsView: View {
             modelContext.insert(course)
         }
 
-        // Sync seeded courses to Firestore
-        if let uid = authService.userProfile?.uid {
+        // Sync seeded courses to Firestore + write activity
+        if let uid = authService.userProfile?.uid, let profile = authService.userProfile {
             syncService.fullSync(courses: samples, uid: uid)
             authService.userProfile?.rankingCount = samples.count
+            for course in samples {
+                syncService.writeActivity(
+                    type: .ranked,
+                    course: course,
+                    newRank: course.rankPosition,
+                    oldRank: nil,
+                    actorProfile: profile,
+                    uid: uid
+                )
+            }
         }
     }
 
@@ -342,6 +358,116 @@ struct RankingsView: View {
             ("test_jack", jackRankings),
         ]
 
+        // Tiger's activity (varied timestamps to test all time buckets)
+        let tigerActivity: [[String: Any]] = [
+            // Today — 2 hours ago
+            ActivityItem(
+                id: "ta1", type: .ranked, actorUid: "test_tiger",
+                actorDisplayName: "Tiger Woods", actorHandle: "tiger",
+                courseName: "Augusta National Golf Club", courseCity: "Augusta", courseState: "GA",
+                courseCountry: "United States", courseRating: "Loved", newRankPosition: 1,
+                oldRankPosition: nil, courseLatitude: 33.5033, courseLongitude: -82.0231,
+                courseType: "Private", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-2 * 3600)
+            ).firestoreData(),
+            // Today — 5 hours ago
+            ActivityItem(
+                id: "ta2", type: .ranked, actorUid: "test_tiger",
+                actorDisplayName: "Tiger Woods", actorHandle: "tiger",
+                courseName: "Torrey Pines South", courseCity: "La Jolla", courseState: "CA",
+                courseCountry: "United States", courseRating: "Loved", newRankPosition: 2,
+                oldRankPosition: nil, courseLatitude: 32.8998, courseLongitude: -117.2523,
+                courseType: "Public", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-5 * 3600)
+            ).firestoreData(),
+            // This week — 2 days ago
+            ActivityItem(
+                id: "ta3", type: .reRanked, actorUid: "test_tiger",
+                actorDisplayName: "Tiger Woods", actorHandle: "tiger",
+                courseName: "St Andrews Old Course", courseCity: "St Andrews", courseState: "",
+                courseCountry: "Scotland", courseRating: "Liked", newRankPosition: 3,
+                oldRankPosition: 5, courseLatitude: 56.3433, courseLongitude: -2.8027,
+                courseType: "Public", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-2 * 86400)
+            ).firestoreData(),
+            // This week — 4 days ago
+            ActivityItem(
+                id: "ta4", type: .ranked, actorUid: "test_tiger",
+                actorDisplayName: "Tiger Woods", actorHandle: "tiger",
+                courseName: "Bethpage Black", courseCity: "Farmingdale", courseState: "NY",
+                courseCountry: "United States", courseRating: "Liked", newRankPosition: 4,
+                oldRankPosition: nil, courseLatitude: 40.7445, courseLongitude: -73.4539,
+                courseType: "Public", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-4 * 86400)
+            ).firestoreData(),
+            // Earlier — 2 weeks ago
+            ActivityItem(
+                id: "ta5", type: .ranked, actorUid: "test_tiger",
+                actorDisplayName: "Tiger Woods", actorHandle: "tiger",
+                courseName: "Chambers Bay", courseCity: "University Place", courseState: "WA",
+                courseCountry: "United States", courseRating: "Didn't Love", newRankPosition: 5,
+                oldRankPosition: nil, courseLatitude: 47.2003, courseLongitude: -122.5731,
+                courseType: "Public", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-14 * 86400)
+            ).firestoreData(),
+        ]
+
+        // Rory's activity (3 items — spread across time buckets)
+        let roryActivity: [[String: Any]] = [
+            // Today — 3 hours ago
+            ActivityItem(
+                id: "ra1", type: .ranked, actorUid: "test_rory",
+                actorDisplayName: "Rory McIlroy", actorHandle: "rorymci",
+                courseName: "Royal County Down", courseCity: "Newcastle", courseState: "",
+                courseCountry: "Northern Ireland", courseRating: "Loved", newRankPosition: 1,
+                oldRankPosition: nil, courseLatitude: 54.2275, courseLongitude: -5.8891,
+                courseType: "Private", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-3 * 3600)
+            ).firestoreData(),
+            // This week — 3 days ago
+            ActivityItem(
+                id: "ra2", type: .ranked, actorUid: "test_rory",
+                actorDisplayName: "Rory McIlroy", actorHandle: "rorymci",
+                courseName: "Pebble Beach Golf Links", courseCity: "Pebble Beach", courseState: "CA",
+                courseCountry: "United States", courseRating: "Loved", newRankPosition: 2,
+                oldRankPosition: nil, courseLatitude: 36.5682, courseLongitude: -121.9487,
+                courseType: "Public", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-3 * 86400)
+            ).firestoreData(),
+            // Earlier — 12 days ago
+            ActivityItem(
+                id: "ra3", type: .ranked, actorUid: "test_rory",
+                actorDisplayName: "Rory McIlroy", actorHandle: "rorymci",
+                courseName: "TPC Sawgrass", courseCity: "Ponte Vedra Beach", courseState: "FL",
+                courseCountry: "United States", courseRating: "Liked", newRankPosition: 3,
+                oldRankPosition: nil, courseLatitude: 30.1975, courseLongitude: -81.3942,
+                courseType: "Public", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-12 * 86400)
+            ).firestoreData(),
+        ]
+
+        // Jack's activity (2 items — earlier)
+        let jackActivity: [[String: Any]] = [
+            ActivityItem(
+                id: "ja1", type: .ranked, actorUid: "test_jack",
+                actorDisplayName: "Jack Nicklaus", actorHandle: "goldenbear",
+                courseName: "Muirfield Village Golf Club", courseCity: "Dublin", courseState: "OH",
+                courseCountry: "United States", courseRating: "Loved", newRankPosition: 1,
+                oldRankPosition: nil, courseLatitude: 40.1131, courseLongitude: -83.1653,
+                courseType: "Private", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-10 * 86400)
+            ).firestoreData(),
+            ActivityItem(
+                id: "ja2", type: .ranked, actorUid: "test_jack",
+                actorDisplayName: "Jack Nicklaus", actorHandle: "goldenbear",
+                courseName: "Augusta National Golf Club", courseCity: "Augusta", courseState: "GA",
+                courseCountry: "United States", courseRating: "Loved", newRankPosition: 2,
+                oldRankPosition: nil, courseLatitude: 33.5033, courseLongitude: -82.0231,
+                courseType: "Private", courseHoleCount: 18,
+                timestamp: now.addingTimeInterval(-11 * 86400)
+            ).firestoreData(),
+        ]
+
         do {
             // Write profiles
             for profile in allProfiles {
@@ -350,6 +476,16 @@ struct RankingsView: View {
             // Write rankings
             for (uid, rankings) in allRankings {
                 try await firestoreService.batchSaveRankings(rankings, uid: uid)
+            }
+            // Write activity
+            for activityData in tigerActivity {
+                try await firestoreService.saveActivity(activityData, uid: "test_tiger")
+            }
+            for activityData in roryActivity {
+                try await firestoreService.saveActivity(activityData, uid: "test_rory")
+            }
+            for activityData in jackActivity {
+                try await firestoreService.saveActivity(activityData, uid: "test_jack")
             }
             // Follow tiger from current user (so Following list has content)
             if let currentUid = authService.userProfile?.uid {
@@ -396,6 +532,10 @@ struct RankingsView: View {
                 authService.userProfile?.followingCount = actualFollowing.count
                 authService.userProfile?.followerCount = actualFollowers.count
             }
+            // Delete activity subcollections for test members
+            for testUid in Self.testMemberUids {
+                try await firestoreService.deleteAllActivity(uid: testUid)
+            }
             // Delete profiles (Firestore cascading doesn't delete subcollections,
             // but for debug purposes this is sufficient — rankings become orphaned)
             for testUid in Self.testMemberUids {
@@ -409,7 +549,8 @@ struct RankingsView: View {
 }
 
 #Preview("Empty State") {
-    RankingsView()
+    @Previewable @State var path = NavigationPath()
+    RankingsView(navigationPath: $path)
         .environment(AuthService())
         .environment(RankingSyncService())
         .environment(FollowService())
@@ -417,6 +558,7 @@ struct RankingsView: View {
 }
 
 #Preview("With Courses") {
+    @Previewable @State var path = NavigationPath()
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Course.self, configurations: config)
 
@@ -483,7 +625,7 @@ struct RankingsView: View {
         container.mainContext.insert(course)
     }
 
-    return RankingsView()
+    return RankingsView(navigationPath: $path)
         .environment(AuthService())
         .environment(RankingSyncService())
         .environment(FollowService())

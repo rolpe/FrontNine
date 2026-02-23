@@ -29,6 +29,7 @@ struct CourseDetailView: View {
 
     // Comparison flow for rating changes
     @State private var comparisonVM: ComparisonViewModel?
+    @State private var oldRankBeforeRerank: Int?
 
     private var totalCourses: Int { allCourses.count }
     private var sameTierCourseCount: Int { allCourses.filter { $0.rating == course.rating }.count }
@@ -378,6 +379,9 @@ struct CourseDetailView: View {
     }
 
     private func startRerank() {
+        // Capture old rank before gap closure
+        oldRankBeforeRerank = course.rankPosition
+
         // Close the rank gap at the current position
         let gapShiftedCourses = allCourses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
         CourseDeleter.closeRankGap(for: course, in: allCourses)
@@ -401,6 +405,9 @@ struct CourseDetailView: View {
     }
 
     private func handleRatingChange(to newRating: Rating) {
+        // Capture old rank before gap closure
+        oldRankBeforeRerank = course.rankPosition
+
         // 1. Remove from current position and close the gap
         let gapShiftedCourses = allCourses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
         CourseDeleter.closeRankGap(for: course, in: allCourses)
@@ -460,6 +467,18 @@ struct CourseDetailView: View {
             var changedIds = Set(shifts.keys)
             changedIds.insert(course.id)
             syncService.syncAfterRankChange(allCourses: allCourses, changedIds: changedIds, uid: uid)
+
+            // Write activity
+            if let profile = authService.userProfile {
+                syncService.writeActivity(
+                    type: .reRanked,
+                    course: course,
+                    newRank: vm.finalRank,
+                    oldRank: oldRankBeforeRerank,
+                    actorProfile: profile,
+                    uid: uid
+                )
+            }
         }
 
         comparisonVM = nil
