@@ -92,7 +92,7 @@ Front Nine/
       ComparisonCardView.swift — Selectable course card with name + location
       ProgressDotsView.swift   — Animated dot progress indicator with configurable activeColor
     MainTabView.swift          — Root TabView with 3 tabs (Rankings/Activity/Profile), navigation path per tab, tab-switch reset
-    CourseDetailView.swift     — Detail/edit/comparison reranking: map peek, stats card, read-only cards, edit mode
+    CourseDetailView.swift     — Detail/edit/re-rank: map peek, stats card, read-only cards, edit mode (no rating), re-rank flow (rating picker → comparisons)
     Profile/
       ProfileFlowView.swift    — Sheet container routing by AuthState (signedOut→signIn, needsSetup→setup, signedIn→profile)
       SignInView.swift          — Sign in with Apple button, nonce/SHA256, Firebase credential, error handling
@@ -136,7 +136,7 @@ Front NineTests/
 - **Progressive auth**: App works fully without signing in. Profile icon in toolbar opens auth sheet. AuthService injected via `.environment()`
 - **AuthService**: `@MainActor @Observable` with `AuthState` enum (unknown/signedOut/signedIn/needsSetup). Firebase auth state listener drives transitions. Injectable `FirestoreServiceProtocol` for testability
 - **Profile flow**: ProfileFlowView routes by `authState` — same state-machine sheet pattern as AddCourseFlowView
-- **Firestore sync**: RankingSyncService injected via `.environment()`, syncs on all 8 mutation points (add, delete, re-rank, edit, drag reorder, rating change, re-rank from detail/search)
+- **Firestore sync**: RankingSyncService injected via `.environment()`, syncs on all mutation points (add, delete, re-rank, edit, drag reorder, re-rank from detail/search)
 - **Social navigation**: Value-based `NavigationLink(value:)` with `.navigationDestination(for:)` — `FirestoreRanking` and `UserProfile` both `Hashable` for this
 - **FollowService**: `@MainActor @Observable` with local `isFollowingCache` dictionary for instant UI, batch Firestore writes (following + followers subcollections + denormalized counts)
 - **Social course detail**: Read-only view from `FirestoreRanking`, matches local courses via `courseKey()` for "on your list" indicator, builds `CourseSearchResult` for "Add to My Rankings" sheet
@@ -173,8 +173,7 @@ Front NineTests/
 - **Binary search ranking**: Head-to-head comparisons within rating tier, O(log N) comparisons
 - **Rankings display**: Tier sections (Loved/Liked/Didn't Love), rank numbers, tier color bars, scrolling (non-sticky) headers
 - **Course detail**: Read-only card layout, map peek, stats card (enriched courses), edit mode (with CourseFormFields), delete with confirmation
-- **Rating change re-ranking**: Edit rating → close rank gap → new comparison flow → re-insert
-- **Re-rank from search**: Selecting an already-added course shows "Re-rank This Course" → pre-filled quick rate → forced comparison (never compares against itself)
+- **Unified re-rank flow**: "Re-rank" button on CourseDetailView → rating picker → comparison flow. Same pattern for re-rank from search (rating-only picker, not full QuickRateView). Rating removed from edit mode — re-rank handles all rating changes
 - **Manual reorder**: Edit mode with drag handles (onMove within tier)
 - **International courses**: Country field, locale-aware display, non-US state/region support
 - **GolfCourseAPI enrichment**: Auto-fetch par, slope, course rating, yardage when previewing a course; tee picker (defaults to White/middle); disambiguation UI for multi-course clubs; graceful degradation (silent failure, card simply hidden)
@@ -193,7 +192,8 @@ Front NineTests/
 - **Profile UI**: ProfileFlowView sheet from toolbar icon (sage when signed in, warmGray when not), SignInView with Apple branding, ProfileSetupView with handle validation, ProfileView with stats row (ranked/followers/following), privacy toggle, member-since date
 - **Firestore sync (Phase 2)**: RankingSyncService syncs rankings to Firestore on all 8 mutation points — add, delete, re-rank, edit, drag reorder, rating change, re-rank from detail, re-rank from search. Denormalized ranking count on user profile. Auto-sync on every mutation (no manual sync button)
 - **Social foundation (Phase 2)**: Follow/unfollow with instant UI (local cache + batch Firestore writes), user search by @handle or display name, view other users' profiles and rankings (tier sections, read-only course rows with chevrons), tappable course detail from social rankings, "Add to My Rankings" CTA (pre-seeds AddCourseFlowView), "#N on your list" indicator with tier-colored dot, "Ranked by [name]" attribution, privacy toggle (private = followers-only rankings), followers/following lists with navigation
-- **Re-rank from detail**: Re-rank button on CourseDetailView for existing courses within a tier
+- **Smart defaults**: courseType defaults to `.public` (most common), holeCount defaults to 18 — rating is the only required selection for new adds
+- **App icon**: AppStore-1024.png in asset catalog (light mode only, iOS derives dark/tinted)
 - **Activity feed (Phase 3)**: 3-tab layout (Rankings/Activity/Profile), activity events written on rank/re-rank, fan-out-on-read feed from followed users, time-grouped display (Today/This Week/Earlier), dual navigation targets (avatar → profile, card → course detail), pull-to-refresh, smart staleness refresh (60s + follow count change), three empty states (not signed in with Apple sign-in button, not following with Find Members CTA, no activity), reusable AppleSignInButton component
 - **218 unit tests passing** across 13 test files
 
@@ -241,7 +241,7 @@ Course discovery features or App Store preparation. Core ranking + auth + sync +
 ### Flow Architecture
 - AddCourseFlowView's 5-state enum: `.search` → `.detail(CourseSearchResult)` → `.quickRate(CourseSearchResult, CourseEnrichmentData?)` → `.comparison(ComparisonViewModel)`. Also `.manualAdd` as alternate path from search.
 - **Preselected result**: `init(preselectedResult:)` skips to `.detail` step — used by "Add to My Rankings" from SocialCourseDetailView
-- **Re-rank flow**: `@State rerankingCourse: Course?` tracks whether we're re-ranking an existing course. When set, QuickRateView pre-fills fields, button says "Re-rank", and completion updates the existing course (closeRankGap → compare against others → set new rank) instead of inserting a new one.
+- **Re-rank from search**: `@State rerankingCourse: Course?` tracks whether we're re-ranking an existing course. When set, `.quickRate` step shows a rating-only picker (not full QuickRateView) → comparisons → re-insert. Enrichment data and coordinates applied silently on Continue.
 - The manual add path (AddCourseView) has its **own NavigationStack** — don't nest another one
 - `interactiveDismissDisabled` only during `.comparison` step (prevent data loss mid-ranking)
 - Keyboard is explicitly resigned before entering comparison: `UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder)...)`
