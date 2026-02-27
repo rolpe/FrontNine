@@ -13,7 +13,7 @@ struct QuickRateView: View {
     var onCourseReady: (Course) -> Void
     var onBack: () -> Void
 
-    @State private var courseType: CourseType?
+    @State private var courseType: CourseType? = .public
     @State private var holeCount: Int = 18
     @State private var selectedRating: Rating?
     @State private var notes: String = ""

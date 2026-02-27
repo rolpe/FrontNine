@@ -16,7 +16,7 @@ final class AddCourseViewModel {
     var city: String = ""
     var state: String = ""
     var country: String = defaultCountry
-    var courseType: CourseType? = nil
+    var courseType: CourseType? = .public
     var holeCount: Int = 18
     var notes: String = ""
     var selectedRating: Rating? = nil
@@ -56,7 +56,7 @@ final class AddCourseViewModel {
         city = ""
         state = ""
         country = defaultCountry
-        courseType = nil
+        courseType = .public
         holeCount = 18
         notes = ""
         selectedRating = nil

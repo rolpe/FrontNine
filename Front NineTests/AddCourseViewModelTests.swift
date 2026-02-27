@@ -163,7 +163,7 @@ struct AddCourseViewModelTests {
         #expect(vm.courseName == "")
         #expect(vm.city == "")
         #expect(vm.state == "")
-        #expect(vm.courseType == nil)
+        #expect(vm.courseType == .public)
         #expect(vm.holeCount == 18)
         #expect(vm.notes == "")
         #expect(vm.selectedRating == nil)
