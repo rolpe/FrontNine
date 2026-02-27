@@ -25,14 +25,14 @@ struct CourseDetailView: View {
     @State private var editCourseType: CourseType? = .public
     @State private var editHoleCount = 18
     @State private var editNotes = ""
-    @State private var editRating: Rating? = .liked
 
-    // Comparison flow for rating changes
+    // Re-rank flow
+    @State private var showRerankRating = false
+    @State private var rerankRating: Rating?
     @State private var comparisonVM: ComparisonViewModel?
     @State private var oldRankBeforeRerank: Int?
 
     private var totalCourses: Int { allCourses.count }
-    private var sameTierCourseCount: Int { allCourses.filter { $0.rating == course.rating }.count }
 
     var body: some View {
         Group {
@@ -41,6 +41,8 @@ struct CourseDetailView: View {
                     applyReranking(vm)
                 })
                 .toolbar(.hidden, for: .navigationBar)
+            } else if showRerankRating {
+                rerankRatingContent
             } else if isEditing {
                 editContent
             } else {
@@ -109,25 +111,26 @@ struct CourseDetailView: View {
                     notesSection(notes)
                 }
 
-                // Re-rank button (only if tier has other courses to compare against)
-                if sameTierCourseCount > 1 {
-                    Button {
-                        startRerank()
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.up.arrow.down")
-                                .font(.system(size: 15, weight: .medium))
-                            Text("Re-rank within \(course.rating.label)")
-                                .font(.system(size: 16, weight: .medium))
-                        }
-                        .foregroundStyle(FNColors.sage)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(FNColors.sage, lineWidth: 1.5)
-                        )
+                // Re-rank button
+                Button {
+                    rerankRating = course.rating
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showRerankRating = true
                     }
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 15, weight: .medium))
+                        Text("Re-rank")
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .foregroundStyle(FNColors.sage)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(FNColors.sage, lineWidth: 1.5)
+                    )
                 }
 
                 // Actions card
@@ -310,8 +313,9 @@ struct CourseDetailView: View {
                 country: $editCountry,
                 courseType: $editCourseType,
                 holeCount: $editHoleCount,
-                rating: $editRating,
-                notes: $editNotes
+                rating: .constant(course.rating),
+                notes: $editNotes,
+                showRating: false
             )
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -333,6 +337,58 @@ struct CourseDetailView: View {
         }
     }
 
+    // MARK: - Re-rank rating picker
+
+    private var rerankRatingContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Course context
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(course.name)
+                        .font(.system(size: 20, weight: .semibold, design: .serif))
+                        .foregroundStyle(FNColors.text)
+
+                    Text(course.locationText)
+                        .font(FNFonts.body())
+                        .foregroundStyle(FNColors.textLight)
+                }
+
+                RatingPickerView(selectedRating: $rerankRating)
+
+                // Continue button
+                if let rating = rerankRating {
+                    Button {
+                        startRerank(withRating: rating)
+                    } label: {
+                        Text("Continue")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(rating.tierColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 40)
+        }
+        .background(FNColors.cream)
+        .navigationTitle("Re-rank")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Cancel") {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showRerankRating = false
+                    }
+                }
+                .foregroundStyle(FNColors.textLight)
+            }
+        }
+    }
+
     // MARK: - Actions
 
     private func beginEditing() {
@@ -343,7 +399,6 @@ struct CourseDetailView: View {
         editCourseType = course.courseType
         editHoleCount = course.holeCount
         editNotes = course.notes ?? ""
-        editRating = course.rating
         isEditing = true
     }
 
@@ -351,11 +406,8 @@ struct CourseDetailView: View {
         let trimmedName = editName.trimmingCharacters(in: .whitespaces)
         let trimmedCity = editCity.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty, !trimmedCity.isEmpty else { return }
+        guard let editCourseType else { return }
 
-        guard let editRating, let editCourseType else { return }
-        let ratingChanged = editRating != course.rating
-
-        // Apply non-rating fields
         course.name = trimmedName
         course.city = trimmedCity
         course.state = editState
@@ -368,17 +420,14 @@ struct CourseDetailView: View {
             : editNotes.trimmingCharacters(in: .whitespaces)
         course.updatedAt = Date()
 
-        if ratingChanged {
-            handleRatingChange(to: editRating)
-        } else if let uid = authService.userProfile?.uid {
-            // Sync field edits (rating changes sync via handleRatingChange)
+        if let uid = authService.userProfile?.uid {
             syncService.syncCourse(course, uid: uid)
         }
 
         isEditing = false
     }
 
-    private func startRerank() {
+    private func startRerank(withRating newRating: Rating) {
         // Capture old rank before gap closure
         oldRankBeforeRerank = course.rankPosition
 
@@ -391,53 +440,22 @@ struct CourseDetailView: View {
             syncService.syncMultipleCourses(gapShiftedCourses, uid: uid)
         }
 
-        // Compare against all other courses (same tier will be filtered by ComparisonViewModel)
+        // Update rating if changed
+        if newRating != course.rating {
+            course.rating = newRating
+        }
+
+        // Compare against all other courses (same tier filtered by ComparisonViewModel)
         let otherCourses = allCourses.filter { $0.id != course.id }
         let vm = ComparisonViewModel(newCourse: course, existingCourses: otherCourses)
 
         if vm.needsComparisons {
             withAnimation(.easeInOut(duration: 0.3)) {
                 comparisonVM = vm
+                showRerankRating = false
             }
         } else {
-            applyReranking(vm)
-        }
-    }
-
-    private func handleRatingChange(to newRating: Rating) {
-        // Capture old rank before gap closure
-        oldRankBeforeRerank = course.rankPosition
-
-        // 1. Remove from current position and close the gap
-        let gapShiftedCourses = allCourses.filter { $0.rankPosition > course.rankPosition && $0.id != course.id }
-        CourseDeleter.closeRankGap(for: course, in: allCourses)
-
-        // Sync gap-closed courses
-        if let uid = authService.userProfile?.uid {
-            syncService.syncMultipleCourses(gapShiftedCourses, uid: uid)
-        }
-
-        // 2. Update rating
-        course.rating = newRating
-
-        // 3. Build list of other courses (excluding this one) for comparison
-        let otherCourses = allCourses.filter { $0.id != course.id }
-
-        // 4. Create a comparison VM to find new position
-        let vm = ComparisonViewModel(
-            newCourse: course,
-            existingCourses: otherCourses
-        )
-
-        if vm.needsComparisons {
-            UIApplication.shared.sendAction(
-                #selector(UIResponder.resignFirstResponder),
-                to: nil, from: nil, for: nil
-            )
-            withAnimation(.easeInOut(duration: 0.3)) {
-                comparisonVM = vm
-            }
-        } else {
+            showRerankRating = false
             applyReranking(vm)
         }
     }

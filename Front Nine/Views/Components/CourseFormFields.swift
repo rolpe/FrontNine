@@ -18,6 +18,7 @@ struct CourseFormFields: View {
 
     var namePlaceholder: String = "Course name"
     var showDividerBeforeRating: Bool = false
+    var showRating: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -88,13 +89,15 @@ struct CourseFormFields: View {
                 }
             }
 
-            if showDividerBeforeRating {
-                Divider()
-                    .background(FNColors.tan)
-                    .padding(.vertical, 8)
-            }
+            if showRating {
+                if showDividerBeforeRating {
+                    Divider()
+                        .background(FNColors.tan)
+                        .padding(.vertical, 8)
+                }
 
-            RatingPickerView(selectedRating: $rating)
+                RatingPickerView(selectedRating: $rating)
+            }
 
             FNTextField(
                 label: "Notes (optional)",

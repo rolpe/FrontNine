@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import MapKit
 
 /// Container view presented as a sheet. Manages the search → detail → rate → compare → insert flow
 /// so the user never sees the rankings list flash between steps.
@@ -20,6 +21,8 @@ struct AddCourseFlowView: View {
     @State private var rerankingCourse: Course?
     /// Captures rank position before gap closure for reRanked activity
     @State private var oldRankBeforeRerank: Int?
+    /// Rating selection for re-rank flow
+    @State private var rerankRating: Rating?
 
     init(preselectedResult: CourseSearchResult? = nil) {
         if let result = preselectedResult {
@@ -83,23 +86,21 @@ struct AddCourseFlowView: View {
                 )
 
             case .quickRate(let result, let enrichmentData):
-                QuickRateView(
-                    searchResult: result,
-                    existingCourse: rerankingCourse,
-                    enrichmentData: enrichmentData,
-                    onCourseReady: { course in
-                        if rerankingCourse != nil {
-                            handleCourseReranked(course)
-                        } else {
-                            handleCourseAdded(course)
+                if let course = rerankingCourse {
+                    rerankRatingView(result: result, enrichmentData: enrichmentData, course: course)
+                } else {
+                    QuickRateView(
+                        searchResult: result,
+                        existingCourse: nil,
+                        enrichmentData: enrichmentData,
+                        onCourseReady: handleCourseAdded,
+                        onBack: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                flowStep = .detail(result)
+                            }
                         }
-                    },
-                    onBack: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            flowStep = .detail(result)
-                        }
-                    }
-                )
+                    )
+                }
 
             case .manualAdd:
                 AddCourseView(onCourseAdded: handleCourseAdded)
@@ -116,6 +117,95 @@ struct AddCourseFlowView: View {
             }
         }
         .interactiveDismissDisabled(isInComparison)
+    }
+
+    // MARK: - Re-rank Rating View
+
+    @ViewBuilder
+    private func rerankRatingView(result: CourseSearchResult, enrichmentData: CourseEnrichmentData?, course: Course) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Map peek with back button
+                ZStack(alignment: .topLeading) {
+                    MapPeekView(
+                        coordinate: result.coordinate,
+                        courseName: result.name,
+                        height: 120
+                    )
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            flowStep = .detail(result)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundStyle(FNColors.sage)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.thinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .padding(.leading, 12)
+                    .padding(.top, 12)
+                }
+
+                VStack(alignment: .leading, spacing: 24) {
+                    // Course info
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(result.name)
+                            .font(FNFonts.header())
+                            .foregroundStyle(FNColors.text)
+                            .tracking(-0.5)
+
+                        Text(Course.formatLocation(city: result.city, state: result.state, country: result.country))
+                            .font(FNFonts.subtext())
+                            .foregroundStyle(FNColors.textLight)
+                    }
+
+                    RatingPickerView(selectedRating: $rerankRating)
+
+                    // Continue button
+                    if let rating = rerankRating {
+                        Button {
+                            // Update rating + metadata from search
+                            course.rating = rating
+                            course.latitude = result.coordinate.latitude
+                            course.longitude = result.coordinate.longitude
+                            if let data = enrichmentData {
+                                course.par = data.par
+                                course.courseRating = data.courseRating
+                                course.slope = data.slope
+                                course.totalYards = data.totalYards
+                                course.golfCourseApiId = data.golfCourseApiId
+                                course.teeName = data.teeName
+                            }
+                            course.updatedAt = Date()
+                            handleCourseReranked(course)
+                        } label: {
+                            Text("Continue")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(rating.tierColor)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 40)
+            }
+        }
+        .background(FNColors.cream)
+        .onAppear {
+            rerankRating = course.rating
+        }
     }
 
     // MARK: - Existing Course Matching
