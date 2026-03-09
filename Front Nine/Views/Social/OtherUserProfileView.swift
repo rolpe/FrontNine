@@ -49,7 +49,12 @@ struct OtherUserProfileView: View {
             VStack(spacing: 24) {
                 // Profile header
                 VStack(spacing: 8) {
-                    InitialsAvatarView(name: vm.profile.displayName, size: 80)
+                    ProfileAvatarView(
+                        name: vm.profile.displayName,
+                        photoURL: vm.profile.photoURL,
+                        uid: vm.profile.uid,
+                        size: 80
+                    )
 
                     Text(vm.profile.displayName)
                         .font(.system(size: 24, weight: .semibold, design: .serif))

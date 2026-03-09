@@ -18,7 +18,12 @@ struct ActivityCardView: View {
             // User row — taps to user profile
             Button(action: onUserTap) {
                 HStack(spacing: 10) {
-                    InitialsAvatarView(name: item.actorDisplayName, size: 36)
+                    ProfileAvatarView(
+                        name: item.actorDisplayName,
+                        photoURL: nil,
+                        uid: item.actorUid,
+                        size: 36
+                    )
 
                     VStack(alignment: .leading, spacing: 2) {
                         actionText

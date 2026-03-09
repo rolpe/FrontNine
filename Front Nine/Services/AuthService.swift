@@ -107,6 +107,17 @@ final class AuthService {
         self.userProfile = profile
     }
 
+    func updatePhotoURL(_ url: String?) async throws {
+        guard let uid = currentUser?.uid, var profile = userProfile else { return }
+        if let url {
+            try await firestoreService.updateProfileField(uid: uid, field: "photoURL", value: url)
+        } else {
+            try await firestoreService.updateProfileField(uid: uid, field: "photoURL", value: NSNull())
+        }
+        profile.photoURL = url
+        self.userProfile = profile
+    }
+
     func checkHandleAvailability(_ handle: String) async -> Bool {
         do {
             return try await firestoreService.isHandleAvailable(handle, excludingUID: currentUser?.uid)

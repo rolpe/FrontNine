@@ -114,7 +114,12 @@ private struct FollowRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            InitialsAvatarView(name: profile.displayName, size: 44)
+            ProfileAvatarView(
+                name: profile.displayName,
+                photoURL: profile.photoURL,
+                uid: profile.uid,
+                size: 44
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.displayName)

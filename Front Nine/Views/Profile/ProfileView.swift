@@ -4,10 +4,12 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ProfileView: View {
     @Environment(AuthService.self) private var authService
     @Environment(FollowService.self) private var followService
+    @Environment(ProfilePhotoService.self) private var photoService
     @Environment(\.dismiss) private var dismiss
 
     var showDismissButton: Bool = true
@@ -15,6 +17,12 @@ struct ProfileView: View {
     @State private var showingDeleteConfirmation = false
     @State private var errorMessage: String?
     @State private var isTogglingPrivacy = false
+
+    // Photo picker state
+    @State private var showPhotoOptions = false
+    @State private var showCamera = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var showPhotoPicker = false
 
     private var memberSinceText: String {
         guard let profile = authService.userProfile else { return "" }
@@ -29,7 +37,30 @@ struct ProfileView: View {
                 // Profile header
                 if let profile = authService.userProfile {
                     VStack(spacing: 8) {
-                        InitialsAvatarView(name: profile.displayName, size: 80)
+                        // Tappable avatar with camera badge
+                        Button { showPhotoOptions = true } label: {
+                            ZStack(alignment: .bottomTrailing) {
+                                ProfileAvatarView(
+                                    name: profile.displayName,
+                                    photoURL: profile.photoURL,
+                                    uid: profile.uid,
+                                    size: 80
+                                )
+
+                                Image(systemName: "camera.circle.fill")
+                                    .font(.system(size: 24))
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, FNColors.sage)
+                                    .offset(x: 4, y: 4)
+                            }
+                        }
+                        .disabled(photoService.isUploading)
+
+                        if photoService.isUploading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(FNColors.sage)
+                        }
 
                             Text(profile.displayName)
                                 .font(.system(size: 24, weight: .semibold, design: .serif))
@@ -149,6 +180,26 @@ struct ProfileView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will permanently delete your profile. Your local rankings will not be affected.")
+        }
+        .confirmationDialog("Profile Photo", isPresented: $showPhotoOptions) {
+            Button("Take Photo") { showCamera = true }
+            Button("Choose from Library") { showPhotoPicker = true }
+            if authService.userProfile?.photoURL != nil {
+                Button("Remove Photo", role: .destructive) { removePhoto() }
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotoItem, matching: .images)
+        .onChange(of: selectedPhotoItem) { _, item in
+            guard let item else { return }
+            Task { await handlePickedPhoto(item) }
+            selectedPhotoItem = nil
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPickerView { image in
+                Task { await uploadPhoto(image) }
+            }
+            .ignoresSafeArea()
         }
     }
 
@@ -280,6 +331,36 @@ struct ProfileView: View {
                 if showDismissButton { dismiss() }
             } catch {
                 errorMessage = "Could not delete account. Please sign out and sign back in, then try again."
+            }
+        }
+    }
+
+    // MARK: - Photo Actions
+
+    private func handlePickedPhoto(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else { return }
+        await uploadPhoto(image)
+    }
+
+    private func uploadPhoto(_ image: UIImage) async {
+        guard let uid = authService.userProfile?.uid else { return }
+        do {
+            let url = try await photoService.uploadPhoto(image, uid: uid)
+            try await authService.updatePhotoURL(url)
+        } catch {
+            errorMessage = "Could not upload photo. Please try again."
+        }
+    }
+
+    private func removePhoto() {
+        guard let uid = authService.userProfile?.uid else { return }
+        Task {
+            do {
+                try await photoService.deletePhoto(uid: uid)
+                try await authService.updatePhotoURL(nil)
+            } catch {
+                errorMessage = "Could not remove photo. Please try again."
             }
         }
     }

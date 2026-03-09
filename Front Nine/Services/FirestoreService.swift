@@ -369,6 +369,7 @@ final class FirestoreService: FirestoreServiceProtocol {
             followerCount: data["followerCount"] as? Int ?? 0,
             followingCount: data["followingCount"] as? Int ?? 0,
             rankingCount: data["rankingCount"] as? Int ?? 0,
+            photoURL: data["photoURL"] as? String,
             createdAt: createdAt,
             updatedAt: updatedAt
         )

@@ -14,6 +14,7 @@ struct Front_NineApp: App {
     @State private var authService = AuthService()
     @State private var syncService = RankingSyncService()
     @State private var followService = FollowService()
+    @State private var photoService = ProfilePhotoService()
 
     init() {
         FirebaseApp.configure()
@@ -54,6 +55,7 @@ struct Front_NineApp: App {
                 .environment(authService)
                 .environment(syncService)
                 .environment(followService)
+                .environment(photoService)
                 .task { authService.startListening() }
         }
         .modelContainer(sharedModelContainer)

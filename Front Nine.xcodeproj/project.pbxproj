@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		30517E5D2F3F833500B2AEB1 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 30517E5C2F3F833500B2AEB1 /* FirebaseAuth */; };
 		30517E5F2F3F833500B2AEB1 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 30517E5E2F3F833500B2AEB1 /* FirebaseFirestore */; };
+		30517E612F3F833500B2AEB1 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 30517E602F3F833500B2AEB1 /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 			files = (
 				30517E5D2F3F833500B2AEB1 /* FirebaseAuth in Frameworks */,
 				30517E5F2F3F833500B2AEB1 /* FirebaseFirestore in Frameworks */,
+				30517E612F3F833500B2AEB1 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +123,7 @@
 			packageProductDependencies = (
 				30517E5C2F3F833500B2AEB1 /* FirebaseAuth */,
 				30517E5E2F3F833500B2AEB1 /* FirebaseFirestore */,
+				30517E602F3F833500B2AEB1 /* FirebaseStorage */,
 			);
 			productName = "Front Nine";
 			productReference = 30517C9A2F300D7000B2AEB1 /* Front Nine.app */;
@@ -414,11 +417,12 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Front Nine uses your camera to take a profile photo.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Front Nine uses your location to find nearby golf courses.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Front Nine accesses your photo library to select a profile photo.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -449,11 +453,12 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Front Nine uses your camera to take a profile photo.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Front Nine uses your location to find nearby golf courses.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Front Nine accesses your photo library to select a profile photo.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -618,6 +623,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 30517E5B2F3F833500B2AEB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		30517E602F3F833500B2AEB1 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 30517E5B2F3F833500B2AEB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
