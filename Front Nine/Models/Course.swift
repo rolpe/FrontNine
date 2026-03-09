@@ -9,6 +9,7 @@ import SwiftData
 enum CourseType: String, Codable, CaseIterable {
     case `public` = "Public"
     case `private` = "Private"
+    case other = "Other"
 }
 
 enum Rating: String, Codable, CaseIterable {

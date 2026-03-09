@@ -139,6 +139,9 @@ struct ProfileView: View {
                 }
             }
         }
+        .task {
+            await authService.refreshProfile()
+        }
         .confirmationDialog("Delete Account", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {
                 deleteAccount()

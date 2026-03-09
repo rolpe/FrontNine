@@ -8,7 +8,7 @@ struct TypePill: View {
     let courseType: CourseType
 
     var body: some View {
-        if courseType == .private {
+        if courseType != .public {
             InfoPill(courseType.rawValue.uppercased())
         }
     }
@@ -18,7 +18,7 @@ struct HolesPill: View {
     let holeCount: Int
 
     var body: some View {
-        if holeCount != 18 {
+        if holeCount > 0 && holeCount != 18 {
             InfoPill("\(holeCount) HOLES")
         }
     }

@@ -46,6 +46,7 @@ struct AddCourseViewModelTests {
         vm.courseName = "Test Course"
         vm.city = "Austin"
         vm.state = "TX"
+        vm.courseType = nil
         vm.selectedRating = .liked
         #expect(!vm.isValid)
     }

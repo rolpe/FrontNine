@@ -115,6 +115,12 @@ final class AuthService {
         }
     }
 
+    /// Re-fetch the current user's profile from Firestore to pick up external changes (e.g. follower count).
+    func refreshProfile() async {
+        guard let uid = currentUser?.uid else { return }
+        await loadProfile(for: uid)
+    }
+
     // MARK: - Private
 
     private func loadProfile(for uid: String) async {

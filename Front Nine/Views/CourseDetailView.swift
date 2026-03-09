@@ -221,7 +221,7 @@ struct CourseDetailView: View {
     private var detailsCard: some View {
         VStack(spacing: 0) {
             detailCardRow(label: "Type", value: course.courseType.rawValue, showDivider: true)
-            detailCardRow(label: "Holes", value: "\(course.holeCount)", showDivider: true)
+            detailCardRow(label: "Holes", value: course.holeCount == 0 ? "N/A" : "\(course.holeCount)", showDivider: true)
             detailCardRow(
                 label: "Added",
                 value: course.createdAt.formatted(date: .abbreviated, time: .omitted),

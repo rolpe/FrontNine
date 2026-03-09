@@ -115,6 +115,11 @@ struct QuickRateView: View {
                                 isSelected: holeCount == 18,
                                 action: { holeCount = 18 }
                             )
+                            PillButtonView(
+                                title: "N/A",
+                                isSelected: holeCount == 0,
+                                action: { holeCount = 0 }
+                            )
                         }
                     }
 
