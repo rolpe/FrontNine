@@ -169,6 +169,22 @@ struct SearchCourseView: View {
                     }
                 }
             }
+
+            // Add manually fallback
+            Button(action: onAddManually) {
+                HStack(spacing: 10) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 14))
+                        .foregroundStyle(FNColors.warmGray)
+
+                    Text("Don't see your course? Add manually")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(FNColors.textLight)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 20)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 20)
     }
