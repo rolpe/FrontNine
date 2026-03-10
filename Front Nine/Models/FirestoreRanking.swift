@@ -8,14 +8,14 @@ import Foundation
 /// Value type that maps a Course's fields to a Firestore document.
 /// Keeps Firestore serialization separate from the SwiftData @Model.
 struct FirestoreRanking: Codable, Equatable, Hashable {
-    let id: String // UUID string
+    var id: String // UUID string (or Firestore document ID)
     var name: String
     var city: String
     var state: String
     var country: String?
     var courseType: String // "Public" or "Private"
     var holeCount: Int
-    var rating: String // "Loved", "Liked", "Didn't Love"
+    var rating: String // "Loved", "Liked", "Didn't Like"
     var rankPosition: Int
     var notes: String?
     var par: Int?

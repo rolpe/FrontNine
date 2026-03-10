@@ -40,7 +40,7 @@ extension Rating {
         switch self {
         case .loved: return "LOVED"
         case .liked: return "LIKED"
-        case .disliked: return "DIDN'T LOVE"
+        case .disliked: return "DIDN'T LIKE"
         }
     }
 }

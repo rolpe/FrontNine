@@ -107,8 +107,15 @@ final class FirestoreService: FirestoreServiceProtocol {
             .order(by: "rankPosition")
             .getDocuments()
 
+        // Use document ID as the ranking id to guarantee uniqueness,
+        // and deduplicate by course name+city in case of stale documents
+        var seen = Set<String>()
         return snapshot.documents.compactMap { doc in
-            parseRanking(from: doc.data())
+            guard var ranking = parseRanking(from: doc.data()) else { return nil }
+            ranking.id = doc.documentID
+            let key = "\(ranking.name.lowercased())|\(ranking.city.lowercased())|\(ranking.state.lowercased())"
+            guard seen.insert(key).inserted else { return nil }
+            return ranking
         }
     }
 
@@ -122,6 +129,8 @@ final class FirestoreService: FirestoreServiceProtocol {
               let rating = data["rating"] as? String,
               let rankPosition = data["rankPosition"] as? Int else { return nil }
 
+        let normalizedRating = Self.normalizeRating(rating)
+
         let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
         let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
 
@@ -133,7 +142,7 @@ final class FirestoreService: FirestoreServiceProtocol {
             country: data["country"] as? String,
             courseType: courseType,
             holeCount: holeCount,
-            rating: rating,
+            rating: normalizedRating,
             rankPosition: rankPosition,
             notes: data["notes"] as? String,
             par: data["par"] as? Int,
@@ -332,7 +341,7 @@ final class FirestoreService: FirestoreServiceProtocol {
             courseCity: courseCity,
             courseState: courseState,
             courseCountry: data["courseCountry"] as? String,
-            courseRating: courseRating,
+            courseRating: Self.normalizeRating(courseRating),
             newRankPosition: newRankPosition,
             oldRankPosition: data["oldRankPosition"] as? Int,
             courseLatitude: data["courseLatitude"] as? Double,
@@ -350,6 +359,13 @@ final class FirestoreService: FirestoreServiceProtocol {
             batch.deleteDocument(doc.reference)
         }
         try await batch.commit()
+    }
+
+    // MARK: - Helpers
+
+    /// Normalize legacy "Didn't Love" rating strings to "Didn't Like"
+    private static func normalizeRating(_ rating: String) -> String {
+        rating == "Didn't Love" ? "Didn't Like" : rating
     }
 
     // MARK: - Parsing

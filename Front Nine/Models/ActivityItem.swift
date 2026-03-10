@@ -19,7 +19,7 @@ struct ActivityItem: Codable, Equatable, Hashable, Identifiable {
     let courseCity: String
     let courseState: String
     let courseCountry: String?
-    let courseRating: String // "Loved", "Liked", "Didn't Love"
+    let courseRating: String // "Loved", "Liked", "Didn't Like"
     let newRankPosition: Int
     let oldRankPosition: Int? // only for reRanked
     let courseLatitude: Double?

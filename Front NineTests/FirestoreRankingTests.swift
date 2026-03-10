@@ -108,7 +108,7 @@ struct FirestoreRankingTests {
 
         #expect(loved.rating == "Loved")
         #expect(liked.rating == "Liked")
-        #expect(disliked.rating == "Didn't Love")
+        #expect(disliked.rating == "Didn't Like")
     }
 
     @Test func initFromCourseHandlesEmptyState() {

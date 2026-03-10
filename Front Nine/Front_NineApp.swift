@@ -56,6 +56,7 @@ struct Front_NineApp: App {
                 .environment(syncService)
                 .environment(followService)
                 .environment(photoService)
+                .preferredColorScheme(.light)
                 .task { authService.startListening() }
         }
         .modelContainer(sharedModelContainer)

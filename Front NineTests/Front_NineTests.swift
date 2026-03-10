@@ -7,6 +7,7 @@
 
 import Testing
 import SwiftData
+import Foundation
 @testable import Front_Nine
 
 struct CourseModelTests {
@@ -68,7 +69,25 @@ struct CourseModelTests {
     @Test func ratingLabel() {
         #expect(Rating.loved.label == "Loved")
         #expect(Rating.liked.label == "Liked")
-        #expect(Rating.disliked.label == "Didn't Love")
+        #expect(Rating.disliked.label == "Didn't Like")
+    }
+
+    @Test func ratingDecodesCurrentValue() throws {
+        let json = Data(#""Didn't Like""#.utf8)
+        let rating = try JSONDecoder().decode(Rating.self, from: json)
+        #expect(rating == .disliked)
+    }
+
+    @Test func ratingDecodesLegacyValue() throws {
+        let json = Data(#""Didn't Love""#.utf8)
+        let rating = try JSONDecoder().decode(Rating.self, from: json)
+        #expect(rating == .disliked)
+    }
+
+    @Test func ratingEncodesToNewValue() throws {
+        let data = try JSONEncoder().encode(Rating.disliked)
+        let string = String(data: data, encoding: .utf8)
+        #expect(string == #""Didn't Like""#)
     }
 
     @Test func ratingCaseIterableOrder() {

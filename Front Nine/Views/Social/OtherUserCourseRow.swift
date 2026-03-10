@@ -20,13 +20,31 @@ struct OtherUserCourseRow: View {
         Course.formatLocation(city: ranking.city, state: ranking.state, country: ranking.country)
     }
 
+    private var isHero: Bool { ranking.rankPosition == 1 }
+
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
-            // Rank number
-            Text("\(ranking.rankPosition)")
-                .font(FNFonts.rankNumber())
-                .foregroundStyle(FNColors.tan)
-                .frame(width: 44, alignment: .leading)
+            // Rank number with optional crown
+            VStack(spacing: 2) {
+                if isHero {
+                    HStack(spacing: 2) {
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(FNColors.tan)
+                            .frame(width: 2, height: 6)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(FNColors.tan)
+                            .frame(width: 2, height: 4)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(FNColors.tan)
+                            .frame(width: 2, height: 6)
+                    }
+                }
+
+                Text("\(ranking.rankPosition)")
+                    .font(isHero ? FNFonts.heroRankNumber() : FNFonts.rankNumber())
+                    .foregroundStyle(isHero ? tierColor : FNColors.tan)
+            }
+            .frame(width: 44, alignment: isHero ? .center : .leading)
 
             // Accent bar
             RoundedRectangle(cornerRadius: 2)
@@ -37,12 +55,12 @@ struct OtherUserCourseRow: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: 3, height: 36)
+                .frame(width: 3, height: isHero ? 48 : 36)
                 .padding(.trailing, 14)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(ranking.name)
-                    .font(FNFonts.bodyMedium())
+                    .font(isHero ? .system(size: 16, weight: .semibold) : FNFonts.bodyMedium())
                     .foregroundStyle(FNColors.text)
 
                 Text(locationText)
@@ -56,7 +74,7 @@ struct OtherUserCourseRow: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(FNColors.tan)
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, isHero ? 18 : 16)
         .contentShape(Rectangle())
     }
 }

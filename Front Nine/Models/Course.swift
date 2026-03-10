@@ -15,7 +15,22 @@ enum CourseType: String, Codable, CaseIterable {
 enum Rating: String, Codable, CaseIterable {
     case loved = "Loved"
     case liked = "Liked"
-    case disliked = "Didn't Love"
+    case disliked = "Didn't Like"
+
+    /// Decode legacy "Didn't Love" values from SwiftData and Firestore
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        if value == "Didn't Love" {
+            self = .disliked
+        } else if let rating = Rating(rawValue: value) {
+            self = rating
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: try decoder.singleValueContainer(),
+                debugDescription: "Unknown rating: \(value)"
+            )
+        }
+    }
 
     var tierOrder: Int {
         switch self {

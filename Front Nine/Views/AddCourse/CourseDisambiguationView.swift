@@ -41,6 +41,7 @@ struct CourseDisambiguationView: View {
                         }
                         .padding(.vertical, 12)
                         .padding(.horizontal, 16)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 

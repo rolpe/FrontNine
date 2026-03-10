@@ -311,7 +311,7 @@ struct RankingsView: View {
             ("t2", FirestoreRanking(id: "t2", name: "Torrey Pines South", city: "La Jolla", state: "CA", country: "United States", courseType: "Public", holeCount: 18, rating: "Loved", rankPosition: 2, notes: nil, par: 72, courseRating: 74.6, slope: 143, totalYards: 7258, golfCourseApiId: nil, teeName: "Blue", latitude: 32.8998, longitude: -117.2523, createdAt: now, updatedAt: now).firestoreData()),
             ("t3", FirestoreRanking(id: "t3", name: "St Andrews Old Course", city: "St Andrews", state: "", country: "Scotland", courseType: "Public", holeCount: 18, rating: "Liked", rankPosition: 3, notes: nil, par: 72, courseRating: 73.1, slope: 132, totalYards: 6721, golfCourseApiId: nil, teeName: "White", latitude: 56.3433, longitude: -2.8027, createdAt: now, updatedAt: now).firestoreData()),
             ("t4", FirestoreRanking(id: "t4", name: "Bethpage Black", city: "Farmingdale", state: "NY", country: "United States", courseType: "Public", holeCount: 18, rating: "Liked", rankPosition: 4, notes: nil, par: 71, courseRating: 76.6, slope: 155, totalYards: 7468, golfCourseApiId: nil, teeName: "Blue", latitude: 40.7445, longitude: -73.4539, createdAt: now, updatedAt: now).firestoreData()),
-            ("t5", FirestoreRanking(id: "t5", name: "Chambers Bay", city: "University Place", state: "WA", country: "United States", courseType: "Public", holeCount: 18, rating: "Didn't Love", rankPosition: 5, notes: "Too many blind shots", par: 72, courseRating: 74.3, slope: 138, totalYards: 7585, golfCourseApiId: nil, teeName: "Blue", latitude: 47.2003, longitude: -122.5731, createdAt: now, updatedAt: now).firestoreData()),
+            ("t5", FirestoreRanking(id: "t5", name: "Chambers Bay", city: "University Place", state: "WA", country: "United States", courseType: "Public", holeCount: 18, rating: "Didn't Like", rankPosition: 5, notes: "Too many blind shots", par: 72, courseRating: 74.3, slope: 138, totalYards: 7585, golfCourseApiId: nil, teeName: "Blue", latitude: 47.2003, longitude: -122.5731, createdAt: now, updatedAt: now).firestoreData()),
         ]
 
         // 2) Rory — private, 3 rankings (tests lock screen)
@@ -405,7 +405,7 @@ struct RankingsView: View {
                 id: "ta5", type: .ranked, actorUid: "test_tiger",
                 actorDisplayName: "Tiger Woods", actorHandle: "tiger",
                 courseName: "Chambers Bay", courseCity: "University Place", courseState: "WA",
-                courseCountry: "United States", courseRating: "Didn't Love", newRankPosition: 5,
+                courseCountry: "United States", courseRating: "Didn't Like", newRankPosition: 5,
                 oldRankPosition: nil, courseLatitude: 47.2003, courseLongitude: -122.5731,
                 courseType: "Public", courseHoleCount: 18,
                 timestamp: now.addingTimeInterval(-14 * 86400)

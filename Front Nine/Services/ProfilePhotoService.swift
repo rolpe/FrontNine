@@ -13,8 +13,11 @@ final class ProfilePhotoService {
     private var storage: Storage { Storage.storage() }
     private let logger = Logger(subsystem: "com.frontnine", category: "ProfilePhoto")
 
-    /// In-memory image cache keyed by uid
-    private var imageCache = NSCache<NSString, UIImage>()
+    /// In-memory image cache keyed by uid — tracked by @Observable for automatic view updates
+    private var imageCache: [String: UIImage] = [:]
+
+    /// UIDs currently being downloaded — prevents duplicate fetches
+    private var downloading: Set<String> = []
 
     /// Currently uploading
     private(set) var isUploading = false
@@ -38,7 +41,7 @@ final class ProfilePhotoService {
         let url = try await ref.downloadURL()
 
         // Cache the uploaded image immediately
-        imageCache.setObject(image, forKey: uid as NSString)
+        imageCache[uid] = image
 
         return url.absoluteString
     }
@@ -48,12 +51,13 @@ final class ProfilePhotoService {
     /// Get a cached image or download from URL.
     func image(for uid: String, url: String?) -> UIImage? {
         // Check cache first
-        if let cached = imageCache.object(forKey: uid as NSString) {
+        if let cached = imageCache[uid] {
             return cached
         }
 
-        // Trigger async download if URL exists
-        if let url {
+        // Trigger async download if URL exists and not already downloading
+        if let url, !downloading.contains(uid) {
+            downloading.insert(uid)
             Task { await downloadAndCache(uid: uid, urlString: url) }
         }
 
@@ -61,15 +65,14 @@ final class ProfilePhotoService {
     }
 
     private func downloadAndCache(uid: String, urlString: String) async {
-        // Double-check cache (another call may have populated it)
-        if imageCache.object(forKey: uid as NSString) != nil { return }
+        defer { downloading.remove(uid) }
 
         guard let url = URL(string: urlString) else { return }
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             if let image = UIImage(data: data) {
-                imageCache.setObject(image, forKey: uid as NSString)
+                imageCache[uid] = image
             }
         } catch {
             logger.error("Failed to download profile photo for \(uid): \(error.localizedDescription)")
@@ -82,12 +85,12 @@ final class ProfilePhotoService {
     func deletePhoto(uid: String) async throws {
         let ref = storage.reference().child("profile_photos/\(uid).jpg")
         try await ref.delete()
-        imageCache.removeObject(forKey: uid as NSString)
+        imageCache.removeValue(forKey: uid)
     }
 
     /// Clear a specific user's cached image (e.g. after URL change).
     func clearCache(for uid: String) {
-        imageCache.removeObject(forKey: uid as NSString)
+        imageCache.removeValue(forKey: uid)
     }
 }
 
