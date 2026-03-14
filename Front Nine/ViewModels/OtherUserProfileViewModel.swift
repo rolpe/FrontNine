@@ -14,7 +14,7 @@ final class OtherUserProfileViewModel {
     private let logger = Logger(subsystem: "com.frontnine", category: "OtherUserProfile")
 
     var rankings: [FirestoreRanking] = []
-    var isLoadingRankings = false
+    var isLoadingRankings = true
     var isFollowActionInProgress = false
 
     var isFollowing: Bool {

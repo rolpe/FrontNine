@@ -137,83 +137,83 @@ private struct FollowRow: View {
     @State private var isToggling = false
 
     var body: some View {
-        HStack(spacing: 14) {
-            NavigationLink(value: profile) {
-                HStack(spacing: 14) {
-                    ProfileAvatarView(
-                        name: profile.displayName,
-                        photoURL: profile.photoURL,
-                        uid: profile.uid,
-                        size: 44
-                    )
+        NavigationLink(value: profile) {
+            HStack(spacing: 14) {
+                ProfileAvatarView(
+                    name: profile.displayName,
+                    photoURL: profile.photoURL,
+                    uid: profile.uid,
+                    size: 44
+                )
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(profile.displayName)
-                            .font(FNFonts.bodyMedium())
-                            .foregroundStyle(FNColors.text)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(profile.displayName)
+                        .font(FNFonts.bodyMedium())
+                        .foregroundStyle(FNColors.text)
 
-                        Text("@\(profile.handle)")
-                            .font(FNFonts.subtext())
-                            .foregroundStyle(FNColors.textLight)
-                    }
+                    Text("@\(profile.handle)")
+                        .font(FNFonts.subtext())
+                        .foregroundStyle(FNColors.textLight)
                 }
-            }
-            .buttonStyle(.plain)
 
-            Spacer()
+                Spacer()
 
-            if isCurrentUser {
-                Text("You")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(FNColors.textLight)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(FNColors.tan.opacity(0.3))
-                    )
-            } else {
-                Button {
-                    guard !isToggling else { return }
-                    isToggling = true
-                    Task {
-                        await onToggleFollow?()
-                        isToggling = false
-                    }
-                } label: {
-                    Group {
-                        if isToggling {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .tint(isFollowing ? FNColors.sage : .white)
-                        } else {
-                            Text(isFollowing ? "Following" : "Follow")
-                                .font(.system(size: 13, weight: .semibold))
-                        }
-                    }
-                    .foregroundStyle(isFollowing ? FNColors.sage : .white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(isFollowing ? Color.clear : FNColors.sage)
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(FNColors.sage, lineWidth: isFollowing ? 1.5 : 0)
-                    )
+                if isCurrentUser {
+                    Text("You")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(FNColors.textLight)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(FNColors.tan.opacity(0.3))
+                        )
+                } else {
+                    followToggle
                 }
-                .buttonStyle(.plain)
-            }
 
-            NavigationLink(value: profile) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(FNColors.tan)
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    private var followToggle: some View {
+        Button {
+            guard !isToggling else { return }
+            isToggling = true
+            Task {
+                await onToggleFollow?()
+                isToggling = false
+            }
+        } label: {
+            Group {
+                if isToggling {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(isFollowing ? FNColors.sage : .white)
+                } else {
+                    Text(isFollowing ? "Following" : "Follow")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+            }
+            .foregroundStyle(isFollowing ? FNColors.sage : .white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(isFollowing ? Color.clear : FNColors.sage)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(FNColors.sage, lineWidth: isFollowing ? 1.5 : 0)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

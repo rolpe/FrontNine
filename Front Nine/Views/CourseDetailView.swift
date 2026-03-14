@@ -494,7 +494,8 @@ struct CourseDetailView: View {
                     newRank: vm.finalRank,
                     oldRank: oldRankBeforeRerank,
                     actorProfile: profile,
-                    uid: uid
+                    uid: uid,
+                    allCourses: allCourses
                 )
             }
         }

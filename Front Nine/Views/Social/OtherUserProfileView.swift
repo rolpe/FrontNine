@@ -12,35 +12,62 @@ struct OtherUserProfileView: View {
     @State private var viewModel: OtherUserProfileViewModel?
 
     var body: some View {
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(FNColors.cream)
-            .navigationTitle("@\(profile.handle)")
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                if viewModel == nil {
-                    viewModel = OtherUserProfileViewModel(
-                        profile: profile,
-                        followService: followService,
-                        currentUid: authService.userProfile?.uid
-                    )
+        Group {
+            if let viewModel {
+                profileContent(viewModel)
+            } else {
+                // Show profile header instantly from passed-in data while VM initializes
+                ScrollView {
+                    VStack(spacing: 24) {
+                        VStack(spacing: 8) {
+                            ProfileAvatarView(
+                                name: profile.displayName,
+                                photoURL: profile.photoURL,
+                                uid: profile.uid,
+                                size: 80
+                            )
+
+                            Text(profile.displayName)
+                                .font(.system(size: 24, weight: .semibold, design: .serif))
+                                .foregroundStyle(FNColors.text)
+
+                            Text("@\(profile.handle)")
+                                .font(FNFonts.subtext())
+                                .foregroundStyle(FNColors.textLight)
+                        }
+                        .padding(.top, 16)
+
+                        HStack(spacing: 32) {
+                            statItem(count: profile.rankingCount, label: "Ranked")
+                            statItem(count: profile.followerCount, label: "Followers")
+                            statItem(count: profile.followingCount, label: "Following")
+                        }
+
+                        ProgressView()
+                            .tint(FNColors.sage)
+                            .padding(.top, 16)
+                    }
+                    .padding(.bottom, 40)
                 }
             }
-            .task {
-                // Small delay to let viewModel initialize via onAppear
-                try? await Task.sleep(for: .milliseconds(50))
-                await viewModel?.refreshProfile()
-                await viewModel?.loadRankings()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(FNColors.cream)
+        .navigationTitle("@\(profile.handle)")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if viewModel == nil {
+                viewModel = OtherUserProfileViewModel(
+                    profile: profile,
+                    followService: followService,
+                    currentUid: authService.userProfile?.uid
+                )
             }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let viewModel {
-            profileContent(viewModel)
-        } else {
-            ProgressView()
-                .tint(FNColors.sage)
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(50))
+            await viewModel?.refreshProfile()
+            await viewModel?.loadRankings()
         }
     }
 

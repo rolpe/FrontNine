@@ -90,8 +90,15 @@ final class RankingSyncService {
         newRank: Int,
         oldRank: Int?,
         actorProfile: UserProfile,
-        uid: String
+        uid: String,
+        allCourses: [Course]
     ) {
+        // Compute tier position for sentiment descriptor
+        let sameTier = allCourses.filter { $0.rating == course.rating }
+            .sorted { $0.rankPosition < $1.rankPosition }
+        let tierRank = (sameTier.firstIndex(where: { $0.id == course.id }) ?? 0) + 1
+        let tierCount = sameTier.count
+
         let item = ActivityItem(
             id: UUID().uuidString,
             type: type,
@@ -109,6 +116,8 @@ final class RankingSyncService {
             courseLongitude: course.longitude,
             courseType: course.courseType.rawValue,
             courseHoleCount: course.holeCount,
+            tierRank: tierRank,
+            tierCount: tierCount,
             timestamp: Date()
         )
         Task {

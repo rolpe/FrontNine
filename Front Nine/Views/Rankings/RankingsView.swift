@@ -284,7 +284,8 @@ struct RankingsView: View {
                     newRank: course.rankPosition,
                     oldRank: nil,
                     actorProfile: profile,
-                    uid: uid
+                    uid: uid,
+                    allCourses: samples
                 )
             }
         }
@@ -367,7 +368,7 @@ struct RankingsView: View {
                 courseName: "Augusta National Golf Club", courseCity: "Augusta", courseState: "GA",
                 courseCountry: "United States", courseRating: "Loved", newRankPosition: 1,
                 oldRankPosition: nil, courseLatitude: 33.5033, courseLongitude: -82.0231,
-                courseType: "Private", courseHoleCount: 18,
+                courseType: "Private", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-2 * 3600)
             ).firestoreData(),
             // Today — 5 hours ago
@@ -377,7 +378,7 @@ struct RankingsView: View {
                 courseName: "Torrey Pines South", courseCity: "La Jolla", courseState: "CA",
                 courseCountry: "United States", courseRating: "Loved", newRankPosition: 2,
                 oldRankPosition: nil, courseLatitude: 32.8998, courseLongitude: -117.2523,
-                courseType: "Public", courseHoleCount: 18,
+                courseType: "Public", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-5 * 3600)
             ).firestoreData(),
             // This week — 2 days ago
@@ -387,7 +388,7 @@ struct RankingsView: View {
                 courseName: "St Andrews Old Course", courseCity: "St Andrews", courseState: "",
                 courseCountry: "Scotland", courseRating: "Liked", newRankPosition: 3,
                 oldRankPosition: 5, courseLatitude: 56.3433, courseLongitude: -2.8027,
-                courseType: "Public", courseHoleCount: 18,
+                courseType: "Public", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-2 * 86400)
             ).firestoreData(),
             // This week — 4 days ago
@@ -397,7 +398,7 @@ struct RankingsView: View {
                 courseName: "Bethpage Black", courseCity: "Farmingdale", courseState: "NY",
                 courseCountry: "United States", courseRating: "Liked", newRankPosition: 4,
                 oldRankPosition: nil, courseLatitude: 40.7445, courseLongitude: -73.4539,
-                courseType: "Public", courseHoleCount: 18,
+                courseType: "Public", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-4 * 86400)
             ).firestoreData(),
             // Earlier — 2 weeks ago
@@ -407,7 +408,7 @@ struct RankingsView: View {
                 courseName: "Chambers Bay", courseCity: "University Place", courseState: "WA",
                 courseCountry: "United States", courseRating: "Didn't Like", newRankPosition: 5,
                 oldRankPosition: nil, courseLatitude: 47.2003, courseLongitude: -122.5731,
-                courseType: "Public", courseHoleCount: 18,
+                courseType: "Public", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-14 * 86400)
             ).firestoreData(),
         ]
@@ -421,7 +422,7 @@ struct RankingsView: View {
                 courseName: "Royal County Down", courseCity: "Newcastle", courseState: "",
                 courseCountry: "Northern Ireland", courseRating: "Loved", newRankPosition: 1,
                 oldRankPosition: nil, courseLatitude: 54.2275, courseLongitude: -5.8891,
-                courseType: "Private", courseHoleCount: 18,
+                courseType: "Private", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-3 * 3600)
             ).firestoreData(),
             // This week — 3 days ago
@@ -431,7 +432,7 @@ struct RankingsView: View {
                 courseName: "Pebble Beach Golf Links", courseCity: "Pebble Beach", courseState: "CA",
                 courseCountry: "United States", courseRating: "Loved", newRankPosition: 2,
                 oldRankPosition: nil, courseLatitude: 36.5682, courseLongitude: -121.9487,
-                courseType: "Public", courseHoleCount: 18,
+                courseType: "Public", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-3 * 86400)
             ).firestoreData(),
             // Earlier — 12 days ago
@@ -441,7 +442,7 @@ struct RankingsView: View {
                 courseName: "TPC Sawgrass", courseCity: "Ponte Vedra Beach", courseState: "FL",
                 courseCountry: "United States", courseRating: "Liked", newRankPosition: 3,
                 oldRankPosition: nil, courseLatitude: 30.1975, courseLongitude: -81.3942,
-                courseType: "Public", courseHoleCount: 18,
+                courseType: "Public", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-12 * 86400)
             ).firestoreData(),
         ]
@@ -454,7 +455,7 @@ struct RankingsView: View {
                 courseName: "Muirfield Village Golf Club", courseCity: "Dublin", courseState: "OH",
                 courseCountry: "United States", courseRating: "Loved", newRankPosition: 1,
                 oldRankPosition: nil, courseLatitude: 40.1131, courseLongitude: -83.1653,
-                courseType: "Private", courseHoleCount: 18,
+                courseType: "Private", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-10 * 86400)
             ).firestoreData(),
             ActivityItem(
@@ -463,7 +464,7 @@ struct RankingsView: View {
                 courseName: "Augusta National Golf Club", courseCity: "Augusta", courseState: "GA",
                 courseCountry: "United States", courseRating: "Loved", newRankPosition: 2,
                 oldRankPosition: nil, courseLatitude: 33.5033, courseLongitude: -82.0231,
-                courseType: "Private", courseHoleCount: 18,
+                courseType: "Private", courseHoleCount: 18, tierRank: nil, tierCount: nil,
                 timestamp: now.addingTimeInterval(-11 * 86400)
             ).firestoreData(),
         ]

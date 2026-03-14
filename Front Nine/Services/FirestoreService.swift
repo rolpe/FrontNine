@@ -348,6 +348,8 @@ final class FirestoreService: FirestoreServiceProtocol {
             courseLongitude: data["courseLongitude"] as? Double,
             courseType: data["courseType"] as? String,
             courseHoleCount: data["courseHoleCount"] as? Int,
+            tierRank: data["tierRank"] as? Int,
+            tierCount: data["tierCount"] as? Int,
             timestamp: timestamp
         )
     }

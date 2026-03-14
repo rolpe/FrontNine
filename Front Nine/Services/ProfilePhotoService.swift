@@ -7,6 +7,7 @@ import FirebaseStorage
 import os
 
 /// Handles profile photo upload, download, caching, and deletion via Firebase Storage.
+/// Two-tier cache: in-memory dictionary (tracked by @Observable) + disk cache in Caches directory.
 @MainActor @Observable
 final class ProfilePhotoService {
     // Computed to avoid accessing Storage before FirebaseApp.configure()
@@ -21,6 +22,16 @@ final class ProfilePhotoService {
 
     /// Currently uploading
     private(set) var isUploading = false
+
+    /// Disk cache directory: Caches/profile_photos/
+    private let diskCacheURL: URL? = {
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let dir = caches.appendingPathComponent("profile_photos", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
 
     // MARK: - Upload
 
@@ -40,22 +51,30 @@ final class ProfilePhotoService {
         _ = try await ref.putDataAsync(data, metadata: metadata)
         let url = try await ref.downloadURL()
 
-        // Cache the uploaded image immediately
+        // Cache the uploaded image in memory and on disk
         imageCache[uid] = image
+        saveToDisk(data: data, uid: uid)
 
         return url.absoluteString
     }
 
     // MARK: - Download / Cache
 
-    /// Get a cached image or download from URL.
+    /// Get a cached image or trigger download from URL.
+    /// Priority: in-memory → disk → network download.
     func image(for uid: String, url: String?) -> UIImage? {
-        // Check cache first
+        // 1. Check in-memory cache
         if let cached = imageCache[uid] {
             return cached
         }
 
-        // Trigger async download if URL exists and not already downloading
+        // 2. Check disk cache
+        if let diskImage = loadFromDisk(uid: uid) {
+            imageCache[uid] = diskImage
+            return diskImage
+        }
+
+        // 3. Trigger async download if URL exists and not already downloading
         if let url, !downloading.contains(uid) {
             downloading.insert(uid)
             Task { await downloadAndCache(uid: uid, urlString: url) }
@@ -73,24 +92,50 @@ final class ProfilePhotoService {
             let (data, _) = try await URLSession.shared.data(from: url)
             if let image = UIImage(data: data) {
                 imageCache[uid] = image
+                saveToDisk(data: data, uid: uid)
             }
         } catch {
             logger.error("Failed to download profile photo for \(uid): \(error.localizedDescription)")
         }
     }
 
+    // MARK: - Disk Cache
+
+    private func diskPath(for uid: String) -> URL? {
+        diskCacheURL?.appendingPathComponent("\(uid).jpg")
+    }
+
+    private func saveToDisk(data: Data, uid: String) {
+        guard let path = diskPath(for: uid) else { return }
+        try? data.write(to: path, options: .atomic)
+    }
+
+    private func loadFromDisk(uid: String) -> UIImage? {
+        guard let path = diskPath(for: uid),
+              let data = try? Data(contentsOf: path),
+              let image = UIImage(data: data) else { return nil }
+        return image
+    }
+
+    private func removeFromDisk(uid: String) {
+        guard let path = diskPath(for: uid) else { return }
+        try? FileManager.default.removeItem(at: path)
+    }
+
     // MARK: - Delete
 
-    /// Delete the profile photo from Storage and clear cache.
+    /// Delete the profile photo from Storage and clear both caches.
     func deletePhoto(uid: String) async throws {
         let ref = storage.reference().child("profile_photos/\(uid).jpg")
         try await ref.delete()
         imageCache.removeValue(forKey: uid)
+        removeFromDisk(uid: uid)
     }
 
-    /// Clear a specific user's cached image (e.g. after URL change).
+    /// Clear a specific user's cached image from both caches (e.g. after URL change).
     func clearCache(for uid: String) {
         imageCache.removeValue(forKey: uid)
+        removeFromDisk(uid: uid)
     }
 }
 

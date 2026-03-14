@@ -61,6 +61,8 @@ struct ActivityFeedViewModelTests {
             courseLongitude: -82.0231,
             courseType: "Public",
             courseHoleCount: 18,
+            tierRank: nil,
+            tierCount: nil,
             timestamp: timestamp
         )
     }

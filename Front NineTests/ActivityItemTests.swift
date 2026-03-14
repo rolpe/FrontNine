@@ -45,6 +45,8 @@ struct ActivityItemTests {
             courseLongitude: courseLongitude,
             courseType: courseType,
             courseHoleCount: courseHoleCount,
+            tierRank: nil,
+            tierCount: nil,
             timestamp: timestamp
         )
     }
@@ -71,6 +73,8 @@ struct ActivityItemTests {
             courseLongitude: -2.8027,
             courseType: "Public",
             courseHoleCount: 18,
+            tierRank: nil,
+            tierCount: nil,
             timestamp: Date()
         )
     }
@@ -96,6 +100,8 @@ struct ActivityItemTests {
             courseLongitude: -121.9487,
             courseType: "Public",
             courseHoleCount: 18,
+            tierRank: nil,
+            tierCount: nil,
             timestamp: timestamp
         )
 

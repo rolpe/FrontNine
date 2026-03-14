@@ -1,6 +1,6 @@
 # Front Nine
 
-An iOS golf course ranking app. Users search for real golf courses via MapKit, rate them with 3-tier sentiment (Loved / Liked / Didn't Love), then rank them within tiers via head-to-head comparisons using binary search. Supports international courses. Evolving toward user accounts and social features (following, shared rankings, activity feeds).
+An iOS golf course ranking app. Users search for real golf courses via MapKit, rate them with 3-tier sentiment (Loved / Liked / Didn't Like), then rank them within tiers via head-to-head comparisons using binary search. Supports international courses. Social features include following, shared rankings, activity feeds, and profile photos. Released on the App Store.
 
 ## Working Style
 Be a thought partner, not just an executor. Before implementing changes, briefly propose alternatives that could improve the user experience or technical approach. Challenge my assumptions and suggest better paths when you see them. Only skip this step if I explicitly say "just do it" or make clear I want exact execution. Pause for manual testing between implementation chunks.
@@ -17,7 +17,8 @@ This is a premium consumer app, not a developer tool. Every feature should feel 
 - SwiftUI + SwiftData, targeting iOS 17+
 - Swift Testing framework (`@Test`, `#expect`, `import Testing`)
 - Xcode 16+ with `PBXFileSystemSynchronizedRootGroup` — new files on disk are auto-detected, no pbxproj editing needed
-- Apple MapKit for course search (`MKLocalSearch` with golf POI filter)
+- Apple MapKit for course search (`MKLocalSearch` with multi-strategy parallel search)
+- Firebase Storage for profile photos
 - CoreLocation for nearby course discovery
 - GolfCourseAPI.com for course enrichment (par, slope, rating, yardage, tee boxes)
 - Firebase (FirebaseAuth + FirebaseFirestore via SPM) for authentication, user profiles, social graph, and rankings sync
@@ -38,7 +39,8 @@ Front Nine/
     FNTheme.swift             — FNColors, FNFonts, Rating display extensions (tierColor, tierLabel)
   Services/
     RankingEngine.swift       — Pure-logic binary search ranking, RankedCourse value type (no SwiftUI/SwiftData imports)
-    CourseSearchService.swift  — Actor wrapping MKLocalSearch with golf POI filter + nearby search
+    CourseSearchService.swift  — Actor wrapping MKLocalSearch with 3-strategy parallel search + nearby search
+    ProfilePhotoService.swift  — @MainActor @Observable Firebase Storage upload/download/cache for profile photos
     GolfCourseAPIService.swift — @MainActor service wrapping GolfCourseAPI.com (search, fetch, in-memory cache)
     CourseEnrichmentService.swift — @Observable matching + tee selection logic, suffix stripping for API search
     LocationManager.swift     — @Observable CLLocationManager wrapper (one-shot location, permission handling)
@@ -85,6 +87,8 @@ Front Nine/
       MapPeekView.swift        — Non-interactive map with gradient fade and Directions button
       TypePill.swift           — InfoPill base + TypePill (private only) + HolesPill (non-18 only)
       InitialsAvatarView.swift — Initials-based avatar circle for user profiles
+      ProfileAvatarView.swift  — Photo avatar with initials fallback, auto-downloads from Firebase Storage
+      CameraPickerView.swift   — UIImagePickerController wrapper for camera/photo library
       AppleSignInButton.swift  — Reusable Sign in with Apple (nonce, SHA256, credential exchange, error handling)
     Comparison/
       ComparisonView.swift     — Head-to-head: two-pin map, tier-colored dots, cards, OR divider, "I can't decide"
@@ -103,8 +107,8 @@ Front Nine/
       OtherUserProfileView.swift   — Other user's profile with rankings display, follow button, privacy lock
       OtherUserCourseRow.swift     — Read-only course row with chevron for social rankings
       SocialCourseDetailView.swift — Read-only course detail from FirestoreRanking, "Add to My Rankings" CTA
-      FollowListView.swift         — Followers/following list with navigation to profiles
-  Front_NineApp.swift          — @main entry, SwiftData ModelContainer, Firebase init, AuthService/RankingSyncService/FollowService environment
+      FollowListView.swift         — Followers/following list with follow buttons and navigation to profiles
+  Front_NineApp.swift          — @main entry, SwiftData ModelContainer, Firebase init, AuthService/RankingSyncService/FollowService/ProfilePhotoService environment, forced light mode
   Supporting Files/
     FrontNine_MVP_PRD.md       — Original product requirements document
 
@@ -144,6 +148,9 @@ Front NineTests/
 - **TabView architecture**: 3-tab layout (Rankings/Activity/Profile) with `@State` NavigationPath per tab. Tab switch resets previous tab's navigation via `.onChange(of: selectedTab)`
 - **Activity feed**: Fan-out-on-read from Firestore activity subcollections. `ActivityFeedService` queries followed users in parallel via `withTaskGroup`, error-resilient per user. Time-grouped display (Today/This Week/Earlier). Smart refresh on tab re-appearance: staleness threshold (60s) + following count change detection
 - **AppleSignInButton**: Extracted reusable component with nonce generation, SHA256, credential exchange. Used by both SignInView and ActivityFeedView empty state
+- **ProfilePhotoService**: `@MainActor @Observable` with tracked `[String: UIImage]` dictionary (NOT NSCache — invisible to @Observable). `downloading: Set<String>` prevents duplicate fetches. `Storage.storage()` must be a computed property (deferred init)
+- **Course search strategy**: Three parallel `MKLocalSearch` queries merged with dedup: (1) golf-filtered + " golf" appended, (2) golf-filtered with exact query, (3) unfiltered + " golf" with category allowlist. Covers miscategorized courses (Montauk Downs = Park) and generic names (The Park)
+- **Dark mode**: Forced light via `.preferredColorScheme(.light)` on root view — app not designed for dark mode
 
 ### Styling Rules
 - All colors via `FNColors` (cream, text, textLight, sage, tan, coral, warmGray) — never hardcode
@@ -168,10 +175,10 @@ Front NineTests/
 ## Current State — What's Working
 
 ### Fully Implemented
-- **Course search via MapKit**: Search → select → preview → quick rate → comparison → insert
+- **Course search via MapKit**: Three parallel search strategies for maximum coverage → select → preview → quick rate → comparison → insert. "Add manually" fallback below results
 - **Manual add course**: Full form with name, city, state/region, country, type, holes, rating, notes
 - **Binary search ranking**: Head-to-head comparisons within rating tier, O(log N) comparisons
-- **Rankings display**: Tier sections (Loved/Liked/Didn't Love), rank numbers, tier color bars, scrolling (non-sticky) headers
+- **Rankings display**: Tier sections (Loved/Liked/Didn't Like), rank numbers, tier color bars, scrolling (non-sticky) headers, crown flourish on #1 course
 - **Course detail**: Read-only card layout, map peek, stats card (enriched courses), edit mode (with CourseFormFields), delete with confirmation
 - **Unified re-rank flow**: "Re-rank" button on CourseDetailView → rating picker → comparison flow. Same pattern for re-rank from search (rating-only picker, not full QuickRateView). Rating removed from edit mode — re-rank handles all rating changes
 - **Manual reorder**: Edit mode with drag handles (onMove within tier)
@@ -191,11 +198,15 @@ Front NineTests/
 - **Firebase Auth (Phase 1)**: Sign in with Apple via Firebase, Firestore user profiles with unique @handles, progressive auth (no sign-in gate), profile setup flow with real-time handle availability, sign out + delete account
 - **Profile UI**: ProfileFlowView sheet from toolbar icon (sage when signed in, warmGray when not), SignInView with Apple branding, ProfileSetupView with handle validation, ProfileView with stats row (ranked/followers/following), privacy toggle, member-since date
 - **Firestore sync (Phase 2)**: RankingSyncService syncs rankings to Firestore on all 8 mutation points — add, delete, re-rank, edit, drag reorder, rating change, re-rank from detail, re-rank from search. Denormalized ranking count on user profile. Auto-sync on every mutation (no manual sync button)
-- **Social foundation (Phase 2)**: Follow/unfollow with instant UI (local cache + batch Firestore writes), user search by @handle or display name, view other users' profiles and rankings (tier sections, read-only course rows with chevrons), tappable course detail from social rankings, "Add to My Rankings" CTA (pre-seeds AddCourseFlowView), "#N on your list" indicator with tier-colored dot, "Ranked by [name]" attribution, privacy toggle (private = followers-only rankings), followers/following lists with navigation
+- **Social foundation (Phase 2)**: Follow/unfollow with instant UI (local cache + batch Firestore writes), user search by @handle or display name, view other users' profiles and rankings (tier sections, read-only course rows with chevrons, crown flourish on #1), tappable course detail from social rankings, "Add to My Rankings" CTA (pre-seeds AddCourseFlowView), "#N on your list" indicator with tier-colored dot, "Ranked by [name]" attribution, privacy toggle (private = followers-only rankings), followers/following lists with follow/unfollow buttons and navigation
 - **Smart defaults**: courseType defaults to `.public` (most common), holeCount defaults to 18 — rating is the only required selection for new adds
 - **App icon**: AppStore-1024.png in asset catalog (light mode only, iOS derives dark/tinted)
 - **Activity feed (Phase 3)**: 3-tab layout (Rankings/Activity/Profile), activity events written on rank/re-rank, fan-out-on-read feed from followed users, time-grouped display (Today/This Week/Earlier), dual navigation targets (avatar → profile, card → course detail), pull-to-refresh, smart staleness refresh (60s + follow count change), three empty states (not signed in with Apple sign-in button, not following with Find Members CTA, no activity), reusable AppleSignInButton component
-- **218 unit tests passing** across 13 test files
+- **Profile photos**: Upload via camera or photo library, Firebase Storage backed, cached in tracked dictionary for @Observable reactivity, auto-download on display, wired into all 6 avatar sites (ProfileView, OtherUserProfileView, ActivityCardView, UserSearchView, FollowListView, ProfileSetupView)
+- **Dark mode protection**: `.preferredColorScheme(.light)` forces light mode app-wide
+- **Backward-compatible rating rename**: "Didn't Love" → "Didn't Like" with custom `init(from:)` decoder for legacy data + Firestore `normalizeRating()` helper
+- **Firestore deduplication**: `fetchRankings()` deduplicates by document ID and name+city+state key
+- **221 unit tests passing** across 13 test files (includes Rating decoding tests)
 
 ### Not Yet Implemented
 - **Course pages**: Aggregate view of a course across all users
@@ -205,7 +216,7 @@ Front NineTests/
 
 ## Next Steps
 
-Course discovery features or App Store preparation. Core ranking + auth + sync + social + activity feed are all complete.
+App is live on the App Store (v1.2). Core ranking + auth + sync + social + activity feed + profile photos are all complete. Potential next: course pages (aggregate view across users), push notifications, additional auth providers.
 
 ## Gotchas & Context a New Session Would Miss
 
@@ -251,6 +262,10 @@ Course discovery features or App Store preparation. Core ranking + auth + sync +
 - `courseKey(name:city:state:)` is the shared normalization function — used in both ViewModel and AddCourseFlowView.findExistingCourse
 - MapKit throws `MKError.placemarkNotFound` when no results found — caught and treated as empty results, not an error
 - Recent searches saved after every search attempt (success or failure), capped at 4, case-insensitive dedup
+- **MapKit POI miscategorization**: Apple categorizes some golf courses as parks (e.g. Montauk Downs = `MKPOICategoryPark`). Generic course names (e.g. "The Park") fail when " golf" is appended. Three parallel searches solve both problems
+- **Search dedup**: By both `id` (name+coordinates) and name+city. Same-name/same-coordinates duplicates cause SwiftUI `ForEach` ghost rows. Name+city dedup catches same course from different searches
+- **Category allowlist for broad search**: Only `.golf`, `.park`, `.nationalPark`, `.campground`, and uncategorized POIs pass through. Allowlist > blocklist because new Apple categories default to excluded
+- **"Add manually" fallback**: Shown below search results for discoverability — users may not know the option exists on the empty search screen
 
 ### Firestore Sync & Social
 - RankingSyncService and FollowService are injected via `.environment()` in `Front_NineApp.swift` alongside AuthService
@@ -263,6 +278,13 @@ Course discovery features or App Store preparation. Core ranking + auth + sync +
 - **AddCourseFlowView preselectedResult**: Optional `CourseSearchResult?` init parameter — when provided, starts at `.detail` step (skips search). Used by "Add to My Rankings" from social course detail. Default `nil` preserves existing behavior
 - **Social course matching**: Uses `CourseSearchViewModel.courseKey(name:city:state:)` to match `FirestoreRanking` to local `Course` — same normalization as search duplicate detection
 
+### Profile Photos & Firebase Storage
+- `ProfilePhotoService` uses `[String: UIImage]` dictionary, NOT `NSCache` — `NSCache` mutations are invisible to `@Observable`, causing photos to randomly appear/disappear
+- `Storage.storage()` must be a computed property (same pattern as `Firestore.firestore()`) — eagerly initializing before `FirebaseApp.configure()` crashes
+- `downloading: Set<String>` prevents duplicate concurrent fetches for the same photo
+- Firebase Storage rules: path segments can't contain dots — use `match /profile_photos/{fileName}` with `fileName.matches(uid + '.jpg')`
+- `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` required in Info.plist for camera/photo access
+
 ### Firebase & Auth
 - `Firestore.firestore()` must be deferred (computed property) — `FirestoreService` is created before `FirebaseApp.configure()` runs
 - Firestore production mode default rules deny ALL reads/writes — custom security rules must be deployed
@@ -273,6 +295,11 @@ Course discovery features or App Store preparation. Core ranking + auth + sync +
 - `@State private var authService = AuthService()` in app entry — `startListening()` deferred to `.task` (after `FirebaseApp.configure()`)
 - Sign out doesn't need confirmation (easily reversible); delete account does
 - `ProfileSetupViewModel` debounces handle availability checks by 500ms, cancels in-flight checks on new input
+
+### Rating Rename (Didn't Love → Didn't Like)
+- `Rating.disliked` raw value is `"Didn't Like"` — custom `init(from decoder:)` maps legacy `"Didn't Love"` to `.disliked`
+- `FirestoreService.normalizeRating()` converts `"Didn't Love"` → `"Didn't Like"` when parsing Firestore documents (rankings and activity items)
+- Existing Firestore data still contains `"Didn't Love"` — normalization happens at read time, not migrated in place
 
 ### Location Display
 - `Course.formatLocation(city:state:country:)` is the single source of truth for formatting — used by Course.locationText, all search result views, and ComparisonView

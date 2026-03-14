@@ -266,7 +266,8 @@ struct AddCourseFlowView: View {
                     newRank: vm.finalRank,
                     oldRank: nil,
                     actorProfile: profile,
-                    uid: uid
+                    uid: uid,
+                    allCourses: allCoursesAfter
                 )
             }
         }
@@ -336,7 +337,8 @@ struct AddCourseFlowView: View {
                     newRank: vm.finalRank,
                     oldRank: oldRankBeforeRerank,
                     actorProfile: profile,
-                    uid: uid
+                    uid: uid,
+                    allCourses: Array(courses)
                 )
             }
         }

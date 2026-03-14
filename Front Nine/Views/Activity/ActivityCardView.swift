@@ -87,12 +87,10 @@ struct ActivityCardView: View {
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    rankCapsule
+                VStack(alignment: .trailing, spacing: 4) {
+                    sentimentBadge
 
-                    if item.type == .reRanked, let oldRank = item.oldRankPosition {
-                        reRankIndicator(from: oldRank)
-                    }
+                    rankBadge
                 }
             }
             .padding(.horizontal, 12)
@@ -103,9 +101,11 @@ struct ActivityCardView: View {
         .contentShape(Rectangle())
     }
 
-    private var rankCapsule: some View {
-        Text("#\(item.newRankPosition)")
-            .font(.system(size: 14, weight: .semibold))
+    private var sentimentBadge: some View {
+        let descriptor = item.sentimentDescriptor
+        let label = descriptor.isEmpty ? item.courseRating : descriptor
+        return Text(label)
+            .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(tierColor)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
@@ -116,14 +116,32 @@ struct ActivityCardView: View {
     }
 
     @ViewBuilder
-    private func reRankIndicator(from oldRank: Int) -> some View {
-        let movedUp = oldRank > item.newRankPosition
-        HStack(spacing: 2) {
-            Image(systemName: movedUp ? "arrow.up" : "arrow.down")
-                .font(.system(size: 10, weight: .medium))
-            Text("from #\(oldRank)")
-                .font(.system(size: 12))
+    private var rankBadge: some View {
+        if item.type == .reRanked, let oldRank = item.oldRankPosition {
+            let movedUp = oldRank > item.newRankPosition
+            HStack(spacing: 3) {
+                Image(systemName: movedUp ? "arrow.up" : "arrow.down")
+                    .font(.system(size: 9, weight: .semibold))
+                Text("#\(item.newRankPosition) from #\(oldRank)")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(movedUp ? FNColors.sage : FNColors.warmGray)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill((movedUp ? FNColors.sage : FNColors.warmGray).opacity(0.12))
+            )
+        } else {
+            Text("#\(item.newRankPosition)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(FNColors.warmGray)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(FNColors.warmGray.opacity(0.12))
+                )
         }
-        .foregroundStyle(movedUp ? FNColors.sage : FNColors.warmGray)
     }
 }
