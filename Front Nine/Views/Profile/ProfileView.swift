@@ -221,6 +221,21 @@ struct ProfileView: View {
                 .background(FNColors.tan.opacity(0.25))
                 .padding(.leading, 52)
 
+            // Share Profile
+            if let profile = authService.userProfile {
+                ShareLink(item: shareMessage(for: profile)) {
+                    socialRow(
+                        icon: "square.and.arrow.up",
+                        title: "Share Profile"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(FNColors.tan.opacity(0.25))
+                    .padding(.leading, 52)
+            }
+
             // Following
             if let profile = authService.userProfile {
                 NavigationLink(value: ProfileDestination.following(uid: profile.uid)) {
@@ -297,6 +312,14 @@ struct ProfileView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(FNColors.textLight)
         }
+    }
+
+    // MARK: - Share
+
+    private static let appStoreURL = "https://apps.apple.com/us/app/front-nine/id6759806146"
+
+    private func shareMessage(for profile: UserProfile) -> String {
+        "Check out my golf course rankings on Front Nine! Find me at @\(profile.handle)\n\(Self.appStoreURL)"
     }
 
     // MARK: - Actions
