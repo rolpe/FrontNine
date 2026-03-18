@@ -14,6 +14,8 @@ struct RankingsView: View {
     @Query(sort: \Course.rankPosition) private var courses: [Course]
     @Binding var navigationPath: NavigationPath
     @State private var showingAddCourse = false
+    @State private var shareImage: UIImage?
+    @State private var isRenderingShareImage = false
     #if DEBUG
     @State private var showingDebugMenu = false
     #endif
@@ -57,9 +59,25 @@ struct RankingsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingAddCourse = true }) {
-                        Image(systemName: "plus")
-                            .foregroundStyle(FNColors.sage)
+                    HStack(spacing: 16) {
+                        if !courses.isEmpty {
+                            Button(action: renderAndShareImage) {
+                                if isRenderingShareImage {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(FNColors.sage)
+                                } else {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .foregroundStyle(FNColors.sage)
+                                }
+                            }
+                            .disabled(isRenderingShareImage)
+                        }
+
+                        Button(action: { showingAddCourse = true }) {
+                            Image(systemName: "plus")
+                                .foregroundStyle(FNColors.sage)
+                        }
                     }
                 }
                 #if DEBUG
@@ -87,6 +105,9 @@ struct RankingsView: View {
             }
             .sheet(isPresented: $showingAddCourse) {
                 AddCourseFlowView()
+            }
+            .sheet(item: $shareImage) { image in
+                ShareImageSheet(image: image)
             }
             .onChange(of: authService.authState) { _, newValue in
                 guard newValue == .signedIn,
@@ -145,6 +166,25 @@ struct RankingsView: View {
         } else {
             FNColors.cream.overlay(rating.tierColor.opacity(0.04))
         }
+    }
+
+    @MainActor
+    private func renderAndShareImage() {
+        isRenderingShareImage = true
+
+        let displayName = authService.userProfile?.displayName ?? "My"
+        let handle = authService.userProfile?.handle ?? ""
+
+        let view = RankingsShareImageView(
+            displayName: displayName,
+            handle: handle,
+            courses: Array(courses)
+        )
+
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 3 // Retina quality
+        shareImage = renderer.uiImage
+        isRenderingShareImage = false
     }
 
     private func moveCourses(in rating: Rating, from source: IndexSet, to destination: Int) {
